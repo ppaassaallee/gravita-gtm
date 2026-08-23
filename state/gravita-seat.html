@@ -909,7 +909,8 @@ const VAULT_FOLDERS = [
 // State mirrors (updated as the prototype runs)
 let state = {
   rulings: [
-    {file:"rulings/2026-08-21.md", line:1, text:"- 2026-08-21 — no 'leverage' in the first line"}
+    {file:"rulings/2026-08-21.md", line:1, text:"- 2026-08-21 — no 'leverage' in the first line"},
+    {file:"rulings/2026-08-23.md", line:1, text:"- 2026-08-23 — no 'saw' as the first word of a first line"}
   ],
   pending: [],
   narration: null,
@@ -1079,10 +1080,20 @@ function renderComposer(capability, top_n, vaultNotes, rulings, rawN, keptN, dra
     : `<span class="composer-rulings"><strong style="color:var(--fg);font-style:normal;">${rulings.length}</strong> ruling${rulings.length>1?"s":""} read first, every run — ${rulings.map(r => `<span class="composer-chip muted">${escapeHtml(r.text.replace(/^- \d{4}-\d{2}-\d{2} — /, ""))}</span>`).join(" ")}</span>`;
 
   const srcChips = isSignal
-    ? `<span class="composer-chip green">stub/apollo</span><span class="composer-chip green">stub/clay</span><span class="composer-chip muted">provider by provider</span>`
-    : capability === "money-loop"
-      ? `<span class="composer-chip green">stub/stripe</span><span class="composer-chip muted">Phase 1 dry-run</span>`
-      : `<span class="composer-chip green">stub/platform-numbers</span><span class="composer-chip muted">Phase 1 dry-run</span>`;
+    ? `<span class="composer-chip green">Ocean.io</span><span class="composer-chip green">Apollo</span><span class="composer-chip green">Instant Data Scraper</span><span class="composer-chip green">Google Maps + Serper</span><span class="composer-chip green">OpenWeb Ninja</span>`
+    : capability === "company-research"
+      ? `<span class="composer-chip green">Firecrawl</span><span class="composer-chip green">Exa</span><span class="composer-chip green">Serper</span>`
+      : capability === "contact-enrichment"
+        ? `<span class="composer-chip green">BlitzAPI</span><span class="composer-chip green">LeadMagic</span><span class="composer-chip green">Prospeo</span><span class="composer-chip green">IcyPeas</span><span class="composer-chip green">Trykitt</span>`
+        : capability === "sequencing"
+          ? `<span class="composer-chip green">EmailBison</span><span class="composer-chip green">PlusVibe</span><span class="composer-chip muted">Porkbun + Name.com</span><span class="composer-chip muted">ScaledMail</span>`
+          : capability === "multi-channel"
+            ? `<span class="composer-chip green">HeyReach</span><span class="composer-chip green">Trigify</span><span class="composer-chip muted">Teamfluence</span><span class="composer-chip muted">Calendly</span>`
+            : capability === "close-layer"
+              ? `<span class="composer-chip green">HubSpot</span><span class="composer-chip green">OutboundSync</span><span class="composer-chip green">Slack + webhook</span><span class="composer-chip green">n8n</span>`
+              : capability === "reasoning"
+                ? `<span class="composer-chip green">Claude Code</span><span class="composer-chip green">GPT 4.1 mini</span><span class="composer-chip green">n8n</span>`
+                : `<span class="composer-chip green">stub/platform-numbers</span><span class="composer-chip muted">Phase 1 dry-run</span>`;
 
   const draftLine = isSignal
     ? `<strong>${top_n}</strong> first messages · <strong>open with the workload</strong> · no pitch in line one`
@@ -1139,7 +1150,7 @@ function renderFloatingGatePill(count) {
 }
 
 function runCapability(cap, params) {
-  const top_n = params.top_n || 5;
+  const top_n = params.top_n || (cap === "signal-outbound" ? 8 : 5);
   const capability = cap;
   const trigger = "manual";
   const isSignal = capability === "signal-outbound";
@@ -1163,9 +1174,10 @@ function runCapability(cap, params) {
       : ["vault/voice/voice.md"];
 
   const relevantRulings = state.rulings;
-  const rawN = STUB_ACCOUNTS.length;
-  const keptN = Math.min(top_n, STUB_ACCOUNTS.length);
-  const drainedN = 0;
+  // First playbook numbers: 40 raw universe, 8 kept after waterfall, 32 drained
+  const rawN = 40;
+  const keptN = Math.min(top_n, 8);
+  const drainedN = Math.max(0, rawN - keptN);
 
   // Render composer immediately (no streaming — composer is the state)
   renderComposer(capability, top_n, vaultNotes, relevantRulings, rawN, keptN, drainedN);
@@ -1220,10 +1232,10 @@ function buildSheet(capability, top_n, rulings) {
   }
 
   const sourceSummary = isSignal
-    ? `Apollo filtered to ICP + signals; ${STUB_ACCOUNTS.length} raw accounts, ${top_n} kept after enrichment waterfall`
+    ? `Ocean.io / Apollo / Instant Data Scraper / Google Maps+Serper / OpenWeb Ninja → Firecrawl+Exa+Serper → BlitzAPI+waterfall; 40 raw universe, 8 kept after enrichment waterfall`
     : capability === "money-loop"
-      ? "stub/stripe (Phase 1 dry-run)"
-      : "stub/platform-numbers (Phase 1 dry-run)";
+      ? `stub/stripe (Phase 1 dry-run)`
+      : `stub/platform-numbers (Phase 1 dry-run)`;
 
   const sheetEl = document.createElement("div");
   sheetEl.className = "sheet";
@@ -1761,7 +1773,7 @@ emptyState.style.display = "block";
   state.narration = {
     capability: "signal-outbound",
     trigger: "manual",
-    sources: ["vault/offer/product.md","vault/buyers/icp.md","vault/voice/voice.md","vault/workflows/signal-outbound.md","stub/apollo","stub/clay (enrichment waterfall)"],
+    sources: ["vault/offer/product.md","vault/buyers/icp.md","vault/voice/voice.md","vault/workflows/signal-outbound.md","Ocean.io","Apollo","Instant Data Scraper","Google Maps+Serper","OpenWeb Ninja","Firecrawl","Exa","Serper","BlitzAPI","LeadMagic","Prospeo","IcyPeas","Trykitt"],
     rulings_honored: pastRulings.map(r => ({file:r.file, line:r.line, text:r.text, how:"read before drafting"})),
     waterfall: {raw:10, kept:10, drained:0},
     rows: rows.map((r, i) => {
@@ -1799,17 +1811,15 @@ emptyState.style.display = "block";
   state.vaultCounts.messages = 2;
 
   // Show the prewarmed run in the thread
-  showPrewarmedRun();
+  showPrewarmedRun(40, 8, 32);
 })();
 
-function showPrewarmedRun() {
+function showPrewarmedRun(rawN, keptN, drainedN) {
   emptyState.style.display = "none";
   const nar = state.narration;
   const vaultNotes = ["vault/offer/product.md","vault/buyers/icp.md","vault/voice/voice.md","vault/workflows/signal-outbound.md"];
-  const rawN = 10;
-  const keptN = nar.rows.length;
 
-  renderComposer(nar.capability, nar.rows.length, vaultNotes, nar.rulings_honored, rawN, keptN, 0);
+  renderComposer(nar.capability, nar.rows.length, vaultNotes, nar.rulings_honored, rawN, keptN, drainedN);
 
   // Build sheet from narration rows
   let rowsHtml = "";

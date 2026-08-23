@@ -162,17 +162,40 @@ class Compiler:
 
 def _default_harness_for(capability: str) -> GHC:
     """Phase 1 fallback harness by capability. The registry replaces this once
-    it has registrations."""
+    it has registrations. The first playbook adds the real tool roles for the
+    Christian-on-X 10-million-cold-emails chain."""
     if capability == "signal-outbound":
         from gravita_gtm.ghc import default_signal_outbound_harness
         return default_signal_outbound_harness()
+    if capability == "company-research":
+        from gravita_gtm.ghc import default_company_research_harness
+        return default_company_research_harness()
+    if capability == "contact-enrichment":
+        from gravita_gtm.ghc import default_contact_enrichment_harness
+        return default_contact_enrichment_harness()
+    if capability == "sequencing":
+        from gravita_gtm.ghc import default_sequencing_harness
+        return default_sequencing_harness()
+    if capability == "send":
+        from gravita_gtm.ghc import default_send_harness
+        return default_send_harness()
+    if capability == "multi-channel":
+        from gravita_gtm.ghc import default_multi_channel_harness
+        return default_multi_channel_harness()
+    if capability == "close-layer":
+        from gravita_gtm.ghc import default_close_layer_harness
+        return default_close_layer_harness()
+    if capability == "reasoning":
+        from gravita_gtm.ghc import default_reasoning_harness
+        return default_reasoning_harness()
     # generic fallback
+    from gravita_gtm.ghc import GHC, ToolAllowlist
     return GHC(
         capability=capability,
         version="0.1.0",
         identity={"tenant_scope": "workspace", "workload_identity": True},
         context={"allowed_sources": [], "memory_policy": "read vault first"},
-        tools=__import__("gravita_gtm.ghc", fromlist=["ToolAllowlist"]).ToolAllowlist(),
+        tools=ToolAllowlist(),
         policy={"risk_class": "medium", "approval": "ask-first"},
         runtime={"adapter": "deterministic", "fallbacks": []},
     )
