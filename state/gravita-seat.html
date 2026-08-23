@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grávita — Seat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fafaf8;
+    --surface: #ffffff;
+    --border: #e5e5e3;
+    --fg: #1a1a1a;
+    --muted: #6b6b6b;
+    --accent: #4f46e5;
+    --accent-soft: #eef2ff;
+    --amber: #d97706;
+    --amber-soft: #fef3c7;
+    --dim: #c5c5c5;
+    --row-dim: #f5f5f4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow: hidden;
+  }
+  .app { display: grid; grid-template-columns: 240px 1fr; height: 100vh; }
+
+  /* --- Vault rail --- */
+  .rail {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 20px 0 20px 0;
+  }
+  .rail-header {
+    padding: 0 16px 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .seat-name {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 15px;
+    color: var(--fg);
+  }
+  .vault-path {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .tree { padding: 4px 0; }
+  .tree-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 16px;
+    cursor: default;
+    font-size: 13px;
+    color: var(--muted);
+    transition: background 0.1s;
+  }
+  .tree-item:hover { background: var(--row-dim); }
+  .tree-item .chevron { width: 10px; text-align: center; color: var(--dim); font-size: 10px; }
+  .tree-item.folder { color: var(--fg); font-weight: 500; }
+  .tree-item .count {
+    margin-left: auto;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--row-dim);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  .tree-item .count.zero { color: var(--dim); }
+  .tree-children { padding-left: 16px; }
+  .tree-leaf {
+    padding: 3px 16px 3px 32px;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: color 0.1s;
+  }
+  .tree-leaf:hover { color: var(--fg); }
+
+  /* --- Thread --- */
+  .thread {
+    overflow-y: auto;
+    padding: 32px 48px 48px;
+    max-width: 680px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .greeting {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 22px;
+    color: var(--fg);
+    margin-bottom: 4px;
+  }
+  .greeting-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 28px;
+  }
+
+  /* Composer */
+  .composer {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    margin-bottom: 24px;
+  }
+  .composer::after { content: ""; position: absolute; }
+  .composer-input-wrap { display: flex; gap: 8px; align-items: center; }
+  .composer input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-family: "Inter", sans-serif;
+    font-size: 14px;
+    color: var(--fg);
+    background: transparent;
+    padding: 4px 0;
+  }
+  .composer input::placeholder { color: var(--dim); }
+  .composer button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.1s;
+    font-family: "Inter", sans-serif;
+  }
+  .composer button:hover { opacity: 0.9; }
+  .composer button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .chip {
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--row-dim);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-family: "Inter", sans-serif;
+    transition: all 0.1s;
+  }
+  .chip:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  .chip:active { transform: scale(0.98); }
+
+  /* Narration stream */
+  .narration { margin-bottom: 24px; }
+  .narr-step {
+    display: flex;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    animation: fadeIn 0.2s ease;
+  }
+  .narr-step:last-child { border-bottom: none; }
+  .narr-step-label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    min-width: 120px;
+    padding-top: 2px;
+  }
+  .narr-step-body { flex: 1; font-size: 13px; color: var(--fg); }
+  .narr-step-body .mono { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--muted); }
+  .narr-step-body .chip-inline {
+    display: inline-block;
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: 3px;
+    margin-right: 4px;
+    font-family: "Inter", sans-serif;
+  }
+  .narr-step-body .chip-inline.cyan { background: #e0f2fe; color: #0369a1; }
+  .narr-step-body .chip-inline.green { background: #dcfce7; color: #15803d; }
+  .narr-step-body .chip-inline.yellow { background: #fef9c3; color: #a16207; }
+  .narr-step-body .chip-inline.muted { background: var(--row-dim); color: var(--muted); }
+  .narr-step-body .ruling-line {
+    display: inline-block;
+    font-size: 12px;
+    padding: 4px 8px;
+    background: var(--row-dim);
+    border-left: 2px solid var(--accent);
+    margin: 4px 0;
+    font-family: "JetBrains Mono", monospace;
+    color: var(--fg);
+  }
+  .narr-step-body .ruling-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: "Inter", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 6px;
+  }
+  .narr-step-empty { font-size: 13px; color: var(--muted); font-style: italic; padding: 8px 0; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Research sheet */
+  .sheet {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .sheet-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .sheet-title {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 17px;
+    color: var(--fg);
+  }
+  .sheet-meta { font-size: 12px; color: var(--muted); }
+  .sheet-meta .mono { font-family: "JetBrains Mono", monospace; color: var(--muted); }
+  .sheet-body { padding: 0; }
+
+  .row {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .row:last-child { border-bottom: none; }
+  .row-head {
+    padding: 12px 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+  }
+  .row-head:hover { background: var(--row-dim); }
+  .row-head .row-num {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    min-width: 44px;
+  }
+  .row-head .row-company { font-weight: 500; color: var(--fg); flex: 1; }
+  .row-head .row-confs {
+    display: flex;
+    gap: 4px;
+    font-size: 11px;
+  }
+  .row-head .row-conf {
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-family: "Inter", sans-serif;
+    font-weight: 500;
+  }
+  .row-head .row-conf.high { background: #dcfce7; color: #15803d; }
+  .row-head .row-conf.medium { background: #fef9c3; color: #a16207; }
+  .row-head .row-conf.low { background: #fee2e2; color: #991b1b; }
+  .row.head-weak .row-company { color: var(--dim); }
+  .row.head-weak .row-num { color: var(--dim); }
+  .row-body {
+    padding: 0 18px 4px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.2s ease, padding 0.2s ease;
+  }
+  .row.open .row-body {
+    max-height: 300px;
+    padding: 0 18px 12px;
+  }
+  .row-body .field { margin-bottom: 4px; }
+  .row-body .field-label { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .row-body .field-value { font-size: 12px; color: var(--fg); }
+  .row-body .draft-block {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: var(--row-dim);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 3px 3px 0;
+    font-size: 13px;
+    color: var(--fg);
+    line-height: 1.5;
+    font-style: normal;
+  }
+  .row-body .draft-block .draft-label {
+    font-size: 10px;
+    color: var(--muted);
+    font-family: "JetBrains Mono", monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .row-body .draft-block .shaped-by {
+    display: inline-block;
+    font-size: 10px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-top: 6px;
+    font-family: "Inter", sans-serif;
+  }
+
+  /* Gate pill */
+  .gate-pill-wrap { margin-bottom: 20px; }
+  .gate-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--amber-soft);
+    border: 1px solid #fcd34d;
+    color: var(--amber);
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.1s;
+    font-family: "Inter", sans-serif;
+  }
+  .gate-pill:hover { background: #fde68a; }
+  .gate-pill .pill-count { font-family: "JetBrains Mono", monospace; font-weight: 600; }
+  .gate-pill .pill-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); }
+  .gate-pill-empty { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); font-family: "Inter", sans-serif; }
+
+  /* Decision bar */
+  .decision-bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 12px 0;
+    border-top: 1px solid var(--border);
+    margin-top: 16px;
+  }
+  .decision-bar button {
+    font-family: "Inter", sans-serif;
+    font-size: 13px;
+    padding: 7px 16px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .decision-bar button:hover { background: var(--row-dim); }
+  .decision-bar button.primary {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .decision-bar button.primary:hover { opacity: 0.9; }
+  .decision-bar button.primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: var(--dim);
+    border-color: var(--dim);
+    color: var(--bg);
+  }
+  .decision-bar button.hold { color: var(--amber); border-color: #fcd34d; }
+  .decision-bar button.hold:hover { background: var(--amber-soft); }
+  .decision-bar .tick-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .decision-bar .tick-wrap input[type="checkbox"] {
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .decision-bar .tick-wrap input[type="checkbox"]:checked + span { color: var(--fg); }
+
+  /* Gate drawer */
+  .drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.2);
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .drawer-overlay.open { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 380px;
+    height: 100vh;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    box-shadow: -4px 0 16px rgba(0,0,0,0.06);
+    z-index: 20;
+    transform: translateX(100%);
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .drawer-title { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .drawer-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+  }
+  .drawer-close:hover { color: var(--fg); }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+  .drawer-art-id {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .drawer-art-cap {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--fg);
+    margin-bottom: 4px;
+  }
+  .drawer-art-status {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    background: var(--amber-soft);
+    color: var(--amber);
+    border: 1px solid #fcd34d;
+    border-radius: 10px;
+    margin-bottom: 14px;
+    font-family: "Inter", sans-serif;
+  }
+  .drawer-section { margin-bottom: 18px; }
+  .drawer-section-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--dim);
+    font-family: "JetBrains Mono", monospace;
+    margin-bottom: 6px;
+  }
+  .drawer-row {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .drawer-row:last-child { border-bottom: none; }
+  .drawer-row-head {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--fg);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .drawer-row-head .row-num { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--muted); }
+  .drawer-row-body { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .drawer-row-body .field { margin-bottom: 3px; }
+  .drawer-row-body .field-label { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--dim); text-transform: uppercase; }
+  .drawer-row-body .field-value { color: var(--fg); }
+  .drawer-draft {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: var(--row-dim);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 3px 3px 0;
+    font-size: 13px;
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  .drawer-confs { display: flex; gap: 4px; margin-top: 4px; }
+  .drawer-confs .conf {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: "Inter", sans-serif;
+    font-weight: 500;
+  }
+  .drawer-confs .conf.high { background: #dcfce7; color: #15803d; }
+  .drawer-confs .conf.medium { background: #fef9c3; color: #a16207; }
+  .drawer-confs .conf.low { background: #fee2e2; color: #991b1b; }
+  .drawer-tick {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+    background: var(--row-dim);
+    border-radius: 4px;
+    margin: 14px 0;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .drawer-tick input[type="checkbox"] { accent-color: var(--accent); margin-top: 2px; flex-shrink: 0; }
+  .drawer-tick.checked { background: var(--accent-soft); color: var(--fg); }
+  .drawer-actions { display: flex; gap: 8px; padding: 16px 20px; border-top: 1px solid var(--border); }
+  .drawer-actions button {
+    flex: 1;
+    font-family: "Inter", sans-serif;
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .drawer-actions button:hover { background: var(--row-dim); }
+  .drawer-actions button.primary {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .drawer-actions button.primary:hover { opacity: 0.9; }
+  .drawer-actions button.primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: var(--dim);
+    border-color: var(--dim);
+    color: var(--bg);
+  }
+  .drawer-actions button.hold { color: var(--amber); border-color: #fcd34d; }
+  .drawer-actions button.hold:hover { background: var(--amber-soft); }
+
+  /* Status toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--fg);
+    color: var(--bg);
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: "Inter", sans-serif;
+    z-index: 30;
+    opacity: 0;
+    transition: all 0.25s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Empty state */
+  .empty-state {
+    padding: 40px 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .empty-state .empty-title {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 17px;
+    color: var(--fg);
+    margin-bottom: 8px;
+  }
+
+  /* Scrollbar */
+  .thread::-webkit-scrollbar, .rail::-webkit-scrollbar, .drawer-body::-webkit-scrollbar { width: 6px; }
+  .thread::-webkit-scrollbar-track, .rail::-webkit-scrollbar-track, .drawer-body::-webkit-scrollbar-track { background: transparent; }
+  .thread::-webkit-scrollbar-thumb, .rail::-webkit-scrollbar-thumb, .drawer-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Vault rail -->
+  <aside class="rail">
+    <div class="rail-header">
+      <div class="seat-name">Default seat</div>
+      <div class="vault-path">vault/</div>
+    </div>
+    <nav class="tree" id="vaultTree"></nav>
+  </aside>
+
+  <!-- Thread -->
+  <main class="thread" id="thread">
+    <div class="greeting">What do you want to run?</div>
+    <div class="greeting-sub">One outcome at a time. The run tells its story; the sheet lands; the gate holds it.</div>
+
+    <div class="composer">
+      <div class="composer-input-wrap">
+        <input type="text" id="cmdInput" placeholder='run signal outbound top 5' autofocus>
+        <button id="cmdRun">Run</button>
+      </div>
+      <div class="chips">
+        <span class="chip" data-cmd="run signal outbound top 5">Run signal outbound</span>
+        <span class="chip" data-cmd="run money loop">Run money loop</span>
+        <span class="chip" data-cmd="run content batch">Run content batch</span>
+        <span class="chip" data-cmd="approve">Approve</span>
+        <span class="chip" data-cmd="hold">Hold</span>
+        <span class="chip" data-cmd="add ruling: no 'saw' as the first word of a first line">Add ruling</span>
+      </div>
+    </div>
+
+    <div id="gatePillWrap" class="gate-pill-wrap"></div>
+
+    <div id="stream" class="narration"></div>
+
+    <div id="sheet"></div>
+
+    <div id="decision" class="decision-bar" style="display:none;">
+      <div class="tick-wrap">
+        <input type="checkbox" id="confidenceTick">
+        <span id="tickLabel">I read the confidence note per row</span>
+      </div>
+      <button class="hold" id="btnHold">Hold</button>
+      <button class="primary" id="btnApprove" disabled>Approve</button>
+      <button id="btnEdit">Edit</button>
+    </div>
+
+    <div id="emptyState" class="empty-state">
+      <div class="empty-title">Nothing run yet.</div>
+      <div>Type a command above, or pick a chip. The first run will narrate itself step by step.</div>
+    </div>
+  </main>
+</div>
+
+<!-- Gate drawer -->
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-title">The gate</div>
+    <button class="drawer-close" id="drawerClose">×</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+  <div class="drawer-actions" id="drawerActions" style="display:none;">
+    <button class="hold" id="ddHold">Hold</button>
+    <button class="primary" id="ddApprove" disabled>Approve</button>
+    <button id="ddEdit">Edit</button>
+  </div>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Real data from the repo ───────────────────────────────────────────
+const STUB_ACCOUNTS = (() => {
+  const NAMES = [
+    "Northwind Mercantile","Acme Logistics Co.","Brighthouse Media Group",
+    "Piedmont Manufacturing","Redwood Capital Partners","Coastal Health Systems",
+    "Summit Retail Group","Ironclad Cyber Defense","Meridian Logistics SA",
+    "Cerulean Analytics LLC","Halcyon Construction Group","Astral Consulting",
+    "Boreal Data Systems","Kingsbridge Financial","Lantern Education Partners",
+    "Cascade Outdoor Brands","Northgate Property Group","Vanguard Health Network",
+    "Eastman Hospitality Group","Solstice Energy Advisors"
+  ];
+  const VERTS = ["logistics","manufacturing","healthcare","retail","financial services","construction","education","energy","hospitality","data services"];
+  const SIGNALS = [
+    {type:"funding", detail:"raised Series B, $25M"},
+    {type:"funding", detail:"raised seed, $3M"},
+    {type:"hiring", detail:"hiring 3 SDRs / BDRs"},
+    {type:"hiring", detail:"hiring a head of demand generation"},
+    {type:"hiring", detail:"hiring a VP of sales"},
+    {type:"owner", detail:"new CEO appointed 6 weeks ago"},
+    {type:"owner", detail:"new CMO appointed 3 weeks ago"},
+    {type:"stale", detail:"website last updated 14 months ago"},
+    {type:"stale", detail:"blogs dormant for 11 months"}
+  ];
+  const ICP_VERTS = new Set(["logistics","manufacturing","healthcare","retail","financial services","construction","energy"]);
+  const accounts = [];
+  for (let i = 0; i < 40; i++) {
+    const name = NAMES[(i + 7) % NAMES.length];
+    const vert = VERTS[(i + 7) % VERTS.length];
+    if (!ICP_VERTS.has(vert)) continue;
+    const years = [3,5,8,12,15,20,30,50,80,120][(i + 7) % 10];
+    const employees = Math.round(years * (1.5 + ((i * 7) % 20) / 10));
+    if (employees < 50 || employees > 500) continue;
+    const spendRanges = ["$50k-$200k","$200k-$500k","$500k-$1M",">$1M"];
+    const spend = spendRanges[(i + 7) % spendRanges.length];
+    const sig = SIGNALS[i % SIGNALS.length];
+    let whatChanged, whatYouSee, whatFixes, confChanged, confSee;
+    if (sig.type === "funding") {
+      whatChanged = `Funding: ${sig.detail}`;
+      confChanged = "high";
+    } else if (sig.type === "hiring") {
+      whatChanged = `Hiring: ${sig.detail}`;
+      confChanged = "high";
+    } else if (sig.type === "owner") {
+      whatChanged = `New owner: ${sig.detail}`;
+      confChanged = "high";
+    } else {
+      whatChanged = `Stale site: ${sig.detail}`;
+      confChanged = "medium";
+    }
+    if (vert === "logistics") {
+      whatYouSee = "No owned demand channel; pipeline flat QoQ; no SDR coverage visible";
+      confSee = "medium";
+      whatFixes = "A researched outbound engine that turns their ICP into conversations, held at your approval gate.";
+    } else if (vert === "manufacturing") {
+      whatYouSee = "No content cadence; case studies from 18 months ago; no follow-up to engaged readers";
+      confSee = "medium";
+      whatFixes = "A content batch and warm-outbound loop that turns their existing readers into a pipeline.";
+    } else if (vert === "healthcare") {
+      whatYouSee = "Enterprise sales cycle no foothold content; buyer personas undocumented";
+      confSee = "low";
+      whatFixes = "Market-map research and a content cadence aimed at the buyers they need to reach.";
+    } else if (spend === ">$1M" || spend === "$500k-$1M") {
+      whatYouSee = "Large budget, no visible outbound motion; running on referrals and inbound alone";
+      confSee = "medium";
+      whatFixes = "Signal outbound that turns their visible changes into researched first touches.";
+    } else {
+      whatYouSee = "No owned demand channel visible; pipeline reliant on inbound";
+      confSee = "medium";
+      whatFixes = "A governed demand-generation workflow that reads from your vault and drafts held at your approval gate.";
+    }
+    accounts.push({
+      company: name,
+      vertical: vert,
+      employees,
+      spend_range: spend,
+      what_changed: whatChanged,
+      what_you_see: whatYouSee,
+      what_your_service_fixes: whatFixes,
+      confidence: { what_changed: confChanged, what_you_see: confSee }
+    });
+  }
+  return accounts;
+})();
+
+const VAULT_FOLDERS = [
+  {name:"offer", open:true, children:[
+    {name:"product.md", leaf:true},
+    {name:"pricing.md", leaf:true},
+    {name:"case-studies/", folder:true, children:[]}
+  ]},
+  {name:"buyers", open:true, children:[
+    {name:"icp.md", leaf:true},
+    {name:"bad-fit.md", leaf:true},
+    {name:"accounts/", folder:true, children:[]}
+  ]},
+  {name:"voice", open:true, children:[
+    {name:"voice.md", leaf:true},
+    {name:"examples.md", leaf:true}
+  ]},
+  {name:"market-map", open:false, children:[
+    {name:"competitors.md", leaf:true},
+    {name:"category-pages/", folder:true, children:[]},
+    {name:"rooms/", folder:true, children:[]}
+  ]},
+  {name:"workflows", open:true, children:[
+    {name:"signal-outbound.md", leaf:true},
+    {name:"warm-outbound.md", leaf:true},
+    {name:"proposal.md", leaf:true},
+    {name:"retention.md", leaf:true}
+  ]},
+  {name:"clients", open:false, children:[]},
+  {name:"calls", open:false, children:[]},
+  {name:"rulings", open:true, children:[
+    {name:"2026-08-21.md", leaf:true, count:1}
+  ]},
+  {name:"prospects", open:true, children:[]},
+  {name:"signals", open:true, children:[]},
+  {name:"messages", open:true, children:[]},
+  {name:"metrics", open:true, children:[]}
+];
+
+// State mirrors (updated as the prototype runs)
+let state = {
+  rulings: [
+    {file:"rulings/2026-08-21.md", line:1, text:"- 2026-08-21 — no 'leverage' in the first line"}
+  ],
+  pending: [],
+  narration: null,
+  audit: [],
+  vaultCounts: {
+    "offer": 2,
+    "buyers": 2,
+    "voice": 2,
+    "market-map": 0,
+    "workflows": 4,
+    "clients": 0,
+    "calls": 0,
+    "rulings": 1,
+    "prospects": 1,
+    "signals": 2,
+    "messages": 2,
+    "metrics": 2
+  }
+};
+
+// ─── DOM refs ──────────────────────────────────────────────────────────
+const thread = document.getElementById("thread");
+const cmdInput = document.getElementById("cmdInput");
+const cmdRun = document.getElementById("cmdRun");
+const stream = document.getElementById("stream");
+const sheet = document.getElementById("sheet");
+const decision = document.getElementById("decision");
+const emptyState = document.getElementById("emptyState");
+const gatePillWrap = document.getElementById("gatePillWrap");
+const confidenceTick = document.getElementById("confidenceTick");
+const tickLabel = document.getElementById("tickLabel");
+const btnApprove = document.getElementById("btnApprove");
+const btnHold = document.getElementById("btnHold");
+const btnEdit = document.getElementById("btnEdit");
+const drawer = document.getElementById("drawer");
+const drawerOverlay = document.getElementById("drawerOverlay");
+const drawerBody = document.getElementById("drawerBody");
+const drawerActions = document.getElementById("drawerActions");
+const ddApprove = document.getElementById("ddApprove");
+const ddHold = document.getElementById("ddHold");
+const ddEdit = document.getElementById("ddEdit");
+const drawerClose = document.getElementById("drawerClose");
+const toast = document.getElementById("toast");
+const vaultTree = document.getElementById("vaultTree");
+
+// ─── Helpers ───────────────────────────────────────────────────────────
+let toastTimer;
+function toastMsg(msg) {
+  toast.textContent = msg;
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+}
+
+function randId(prefix) {
+  return prefix + "-" + Array.from({length:10}, () => "0123456789abcdef"[(Math.random()*16)|0]).join("");
+}
+
+function nowISO() {
+  return new Date().toISOString();
+}
+
+function fileCut(path) {
+  // strip /Users/alejandropascual/gravita-gtm/ prefix
+  const p = "/Users/alejandropascual/gravita-gtm/";
+  if (path.startsWith(p)) return path.slice(p.length);
+  return path;
+}
+
+// ─── Draft generation with ruling application ─────────────────────────
+function generateDraft(row, rulings) {
+  const changed = row.what_changed;
+  const company = row.company;
+  const see = row.what_you_see;
+  const fixes = row.what_your_service_fixes;
+
+  let firstLine;
+  const cl = changed.toLowerCase();
+  if (cl.includes("funding")) {
+    firstLine = `Saw ${changed.toLowerCase()} at ${company} — new money usually means new hires and new vendors, and usually a window to set the pattern before the noise catches up.`;
+  } else if (cl.includes("hiring")) {
+    firstLine = `Saw ${changed.toLowerCase()} at ${company} — a hire for the role you replace usually means the budget already exists and someone is now accountable for filling it.`;
+  } else if (cl.includes("owner")) {
+    firstLine = `Saw ${changed.toLowerCase()} at ${company} — a new owner usually looks for quick wins in the first 90 days, and the work that's visible from outside is usually the easiest one to point to.`;
+  } else if (cl.includes("stale")) {
+    firstLine = `Saw ${changed.toLowerCase()} at ${company} — a site untouched for a year usually means the work is visible from outside — and usually the easiest place to start.`;
+  } else {
+    firstLine = `Saw ${changed.toLowerCase()} at ${company} — something changed, and the work that's visible from outside is usually the easiest place to start.`;
+  }
+
+  let draft = firstLine + " " + see + ". " + fixes + ".";
+
+  // Apply rulings: no 'X' as the first word of a first line
+  for (const r of rulings) {
+    const m = r.text.match(/no\s+['"]?(\w+)['"]?\s+as\s+the\s+first\s+word/i);
+    if (m) {
+      const banned = m[1].toLowerCase();
+      const firstWord = draft.split(/\s+/)[0].toLowerCase();
+      if (firstWord === banned) {
+        // Rewrite: drop the first word, capitalize what remains
+        draft = draft.replace(/^Saw\s+/i, "");
+        draft = draft.charAt(0).toUpperCase() + draft.slice(1);
+      }
+    }
+    // Also apply: no 'X' in the first line
+    const m2 = r.text.match(/no\s+['"]?(\w+)['"]?\s+(?:in|on|inside)\s+the\s+first\s+line/i);
+    if (m2) {
+      const banned = m2[1].toLowerCase();
+      const firstLineEnd = draft.indexOf(" — ");
+      const firstLine = firstLineEnd >= 0 ? draft.slice(0, firstLineEnd) : draft;
+      if (firstLine.toLowerCase().includes(banned)) {
+        const repl = firstLine.replace(new RegExp("\\b" + m2[1] + "\\b", "i"), "");
+        draft = (firstLineEnd >= 0 ? repl + draft.slice(firstLineEnd) : repl + draft.slice(firstLine.length));
+      }
+    }
+  }
+
+  // Track which ruling shaped this draft
+  let shapedBy = null;
+  for (const r of rulings) {
+    const m = r.text.match(/no\s+['"]?(\w+)['"]?\s+as\s+the\s+first\s+word/i);
+    if (m) {
+      const banned = m[1].toLowerCase();
+      const firstWord = draft.split(/\s+/)[0].toLowerCase();
+      // Only flag if the original would have had the banned word
+      const originalFirst = firstLine.split(/\s+/)[0].toLowerCase();
+      if (originalFirst === banned) {
+        shapedBy = r;
+        break;
+      }
+    }
+  }
+
+  return { draft, shapedBy };
+}
+
+// ─── Run simulation ────────────────────────────────────────────────────
+function parseCommand(input) {
+  const s = input.trim().toLowerCase();
+  // run signal outbound top N
+  const so = s.match(/run\s+signal\s+outbound\s+(?:top\s+)?(\d+)/);
+  if (so) return {capability:"signal-outbound", top_n:parseInt(so[1])};
+  if (s.includes("run signal outbound")) return {capability:"signal-outbound", top_n:5};
+  const ml = s.match(/run\s+money\s+loop/);
+  if (ml) return {capability:"money-loop"};
+  const cb = s.match(/run\s+content\s+batch/);
+  if (cb) return {capability:"content-batch"};
+  if (s.startsWith("approve")) return {action:"approve"};
+  if (s.startsWith("hold")) return {action:"hold"};
+  const ar = s.match(/add\s+ruling:\s*(.+)/);
+  if (ar) return {action:"add-ruling", text:ar[1].trim()};
+  if (s.startsWith("edit")) return {action:"edit"};
+  return null;
+}
+
+function runCapability(cap, params) {
+  const top_n = params.top_n || 5;
+  const capability = cap;
+  const trigger = "manual";
+  const isSignal = capability === "signal-outbound";
+
+  // Clear previous
+  stream.innerHTML = "";
+  sheet.innerHTML = "";
+  decision.style.display = "none";
+  emptyState.style.display = "none";
+  closeDrawer();
+
+  // Build narration steps
+  const steps = [];
+
+  // 1. Trigger
+  steps.push({label:"trigger", body:`<span class="chip-inline cyan">${trigger}</span> ${capability} — you asked for ${top_n} ${isSignal ? "prospects" : "rows"}.`});
+
+  // 2. Read vault
+  const vaultNotes = isSignal
+    ? ["vault/offer/product.md","vault/buyers/icp.md","vault/voice/voice.md","vault/workflows/signal-outbound.md"]
+    : capability === "money-loop"
+      ? ["vault/offer/product.md"]
+      : ["vault/voice/voice.md"];
+  steps.push({label:"read vault", body:vaultNotes.map(n => `<span class="mono">${n}</span>`).join(", ")});
+
+  // 3. Rulings
+  const relevantRulings = state.rulings; // all rulings are read every run
+  if (relevantRulings.length === 0) {
+    steps.push({label:"rulings", body:`<span class="narr-step-empty">no rulings — nothing read before drafting</span>`});
+  } else {
+    const html = relevantRulings.map(r =>
+      `<span class="ruling-line"><span class="ruling-label">read before drafting</span>${escapeHtml(r.text)}</span>`
+    ).join("");
+    steps.push({label:"rulings", body:`<div style="margin-top:4px;">${html}</div><div style="font-size:11px;color:var(--muted);margin-top:4px;">${relevantRulings.length} ruling${relevantRulings.length>1?"s":""} read first, every run</div>`});
+  }
+
+  // 4. Source
+  const srcLabel = isSignal
+    ? `<span class="mono">stub/apollo</span> + <span class="mono">stub/clay</span> <span class="chip-inline muted">Phase 1 dry-run</span>`
+    : capability === "money-loop"
+      ? `<span class="mono">stub/stripe</span> <span class="chip-inline muted">Phase 1 dry-run</span>`
+      : `<span class="mono">stub/platform-numbers</span> <span class="chip-inline muted">Phase 1 dry-run</span>`;
+  steps.push({label:"source", body:srcLabel});
+
+  // 5. Enrichment waterfall
+  const rawN = 10;
+  const keptN = Math.min(top_n, STUB_ACCOUNTS.length);
+  const drainedN = 0;
+  steps.push({label:"enrichment", body:
+    `<span class="chip-inline cyan">${rawN}</span> raw <span class="chip-inline muted">→</span> ` +
+    `<span class="chip-inline green">${keptN}</span> kept <span class="chip-inline muted">→</span> ` +
+    `<span class="chip-inline yellow">${drainedN}</span> drained` +
+    ` <span style="font-size:11px;color:var(--muted);">weak rows dropped before drafting</span>`
+  });
+
+  // 6. Research sheet summary
+  steps.push({label:"research sheet", body:`<span class="chip-inline cyan">${keptN}</span> rows with confidence notes, top ${top_n}`});
+
+  // Stream the narration
+  emptyState.style.display = "none";
+  let stepIndex = 0;
+  function streamNext() {
+    if (stepIndex >= steps.length) {
+      // Done streaming — build the sheet
+      buildSheet(capability, top_n, relevantRulings);
+      return;
+    }
+    const s = steps[stepIndex];
+    const el = document.createElement("div");
+    el.className = "narr-step";
+    el.innerHTML = `<div class="narr-step-label">${s.label}</div><div class="narr-step-body">${s.body}</div>`;
+    stream.appendChild(el);
+    stream.scrollTop = stream.scrollHeight;
+    stepIndex++;
+    setTimeout(streamNext, 280 + Math.random() * 220);
+  }
+  streamNext();
+}
+
+function buildSheet(capability, top_n, rulings) {
+  // Pick top_n accounts (deterministic by index for reproducibility)
+  const accounts = STUB_ACCOUNTS.slice(0, top_n);
+  const isSignal = capability === "signal-outbound";
+
+  let rowsHtml = "";
+  let anyWeak = false;
+  for (let i = 0; i < accounts.length; i++) {
+    const row = accounts[i];
+    const conf = row.confidence;
+    const isWeak = conf.what_changed === "low" || conf.what_you_see === "low";
+    if (isWeak) anyWeak = true;
+    const {draft, shapedBy} = generateDraft(row, rulings);
+
+    rowsHtml += `
+      <div class="row ${isWeak ? "head-weak" : ""}" data-row="${i}">
+        <div class="row-head">
+          <span class="row-num">row ${String(i+1).padStart(2,"0")}</span>
+          <span class="row-company">${escapeHtml(row.company)}</span>
+          <div class="row-confs">
+            <span class="row-conf ${conf.what_changed}">${conf.what_changed}</span>
+            <span class="row-conf ${conf.what_you_see}">${conf.what_you_see}</span>
+          </div>
+        </div>
+        <div class="row-body">
+          <div class="field"><div class="field-label">what changed</div><div class="field-value">${escapeHtml(row.what_changed)}</div></div>
+          <div class="field"><div class="field-label">what you see</div><div class="field-value">${escapeHtml(row.what_you_see)}</div></div>
+          <div class="field"><div class="field-label">what your service fixes</div><div class="field-value">${escapeHtml(row.what_your_service_fixes)}</div></div>
+          <div class="draft-block">
+            <div class="draft-label">draft · held at the gate</div>
+            ${escapeHtml(draft)}
+            ${shapedBy ? `<div class="shaped-by">shaped by ruling: ${shapedBy.line} — ${escapeHtml(shapedBy.text.replace(/^- \d{4}-\d{2}-\d{2} — /, ""))}</div>` : ""}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  const sourceSummary = isSignal
+    ? `Apollo filtered to ICP + signals; ${STUB_ACCOUNTS.length} raw accounts, ${top_n} kept after enrichment waterfall`
+    : capability === "money-loop"
+      ? "stub/stripe (Phase 1 dry-run)"
+      : "stub/platform-numbers (Phase 1 dry-run)";
+
+  const sheetEl = document.createElement("div");
+  sheetEl.className = "sheet";
+  sheetEl.innerHTML = `
+    <div class="sheet-header">
+      <div class="sheet-title">Research sheet</div>
+      <div class="sheet-meta">
+        <span class="mono">${capability}</span> · <span class="mono">${trigger}</span> · ${top_n} rows
+        ${anyWeak ? `<span class="chip-inline yellow" style="margin-left:6px;">${anyWeakCount(accounts)} weak row${anyWeakCount(accounts)>1?"s":""} folded & dimmed</span>` : ""}
+      </div>
+    </div>
+    <div class="sheet-body">
+      ${rowsHtml}
+    </div>
+  `;
+  sheet.appendChild(sheetEl);
+
+  // Attach click handlers to rows
+  sheetEl.querySelectorAll(".row-head").forEach(head => {
+    head.addEventListener("click", () => {
+      const row = head.closest(".row");
+      row.classList.toggle("open");
+    });
+  });
+
+  // Build write-back
+  const wbFiles = [];
+  const id = randId("so-");
+  if (isSignal) {
+    wbFiles.push(`prospects/${id}.md`);
+    for (let i = 0; i < Math.min(top_n, 2); i++) {
+      wbFiles.push(`signals/${id}-${String(i+1).padStart(2,"0")}.md`);
+      wbFiles.push(`messages/${id}-${String(i+1).padStart(2,"0")}.md`);
+    }
+  } else if (capability === "money-loop") {
+    wbFiles.push(`metrics/${id}.md`);
+  } else {
+    wbFiles.push(`metrics/${id}.md`);
+  }
+
+  // Store pending artifact
+  const artifact = {
+    id,
+    capability,
+    status: "pending",
+    content: {
+      type: isSignal ? "research-sheet" : capability === "money-loop" ? "money-loop-artifact" : "content-batch",
+      trigger,
+      source_summary: sourceSummary,
+      top_n,
+      total_kept: STUB_ACCOUNTS.length,
+      rows: accounts.map((r, i) => {
+        const {draft, shapedBy} = generateDraft(r, rulings);
+        return {
+          row: i+1,
+          company: r.company,
+          vertical: r.vertical,
+          employees: r.employees,
+          spend_range: r.spend_range,
+          what_changed: r.what_changed,
+          what_you_see: r.what_you_see,
+          what_your_service_fixes: r.what_your_service_fixes,
+          confidence: r.confidence,
+          draft,
+          shaped_by: shapedBy ? {file:shapedBy.file, line:shapedBy.line, text:shapedBy.text} : null
+        };
+      })
+    },
+    confidence: accounts.map((r, i) => ({
+      row: i+1,
+      note: `row ${String(i+1).padStart(2,"0")}: what_changed=${r.confidence.what_changed}, what_you_see=${r.confidence.what_you_see}`,
+      what_changed: r.confidence.what_changed,
+      what_you_see: r.confidence.what_you_see
+    })),
+    decision_evidence: {
+      read_vault: vaultNotes.map(n => "/Users/alejandropascual/gravita-gtm/" + n),
+      rulings_matched: rulings.map(r => r.file),
+      rulings_honored: rulings.map(r => ({file:r.file, text:r.text, how:"read before drafting"})),
+      source: isSignal ? "stub/apollo + stub/clay (Phase 1 dry-run)" : capability === "money-loop" ? "stub/stripe (Phase 1 dry-run)" : "stub/platform-numbers (Phase 1 dry-run)",
+      accounts_considered: STUB_ACCOUNTS.length,
+      accounts_kept: STUB_ACCOUNTS.length,
+      accounts_drafted: top_n,
+      draft_rules: "open with workload, two short paragraphs, no pitch in first line, handful not a list"
+    },
+    created_at: nowISO(),
+    approved_at: null
+  };
+
+  state.pending.unshift(artifact); // most recent first
+  state.narration = {
+    capability,
+    trigger,
+    sources: [...vaultNotes, "stub/apollo", "stub/clay (enrichment waterfall)"],
+    rulings_honored: rulings.map(r => ({file:r.file, line:r.line, text:r.text, how:"read before drafting"})),
+    waterfall: {raw: STUB_ACCOUNTS.length, kept: STUB_ACCOUNTS.length, drained: 0},
+    rows: accounts.map((r, i) => {
+      const {draft, shapedBy} = generateDraft(r, rulings);
+      return {
+        row: i+1,
+        company: r.company,
+        vertical: r.vertical,
+        employees: r.employees,
+        spend_range: r.spend_range,
+        what_changed: r.what_changed,
+        what_you_see: r.what_you_see,
+        what_your_service_fixes: r.what_your_service_fixes,
+        confidence: r.confidence,
+        draft,
+        shaped_by: shapedBy ? {file:shapedBy.file, line:shapedBy.line, text:shapedBy.text} : null
+      };
+    }),
+    draft_rule: "open with workload, two short paragraphs, no pitch in first line, handful not a list",
+    gate: `PENDING (ask-first for ${isSignal ? "send" : capability === "money-loop" ? "SEND/SPEND" : "PUBLISH"})`,
+    write_back: wbFiles
+  };
+
+  // Audit entry
+  state.audit.unshift({
+    id: artifact.id,
+    capability,
+    harness_version: "0.1.0",
+    risk_class: "medium",
+    approval_mode: "ask-first",
+    fired_at: nowISO(),
+    evidence: artifact.decision_evidence,
+    status: "produced"
+  });
+
+  // Update vault counts
+  state.vaultCounts.prospects += 1;
+  if (isSignal) {
+    state.vaultCounts.signals += Math.min(top_n, 2);
+    state.vaultCounts.messages += Math.min(top_n, 2);
+  } else {
+    state.vaultCounts.metrics += 1;
+  }
+
+  renderVaultTree();
+  renderGatePill();
+  renderDecisionBar(artifact);
+  emptyState.style.display = "none";
+
+  toastMsg(`ran ${capability} — ${artifact.id}`);
+}
+
+function anyWeakCount(accounts) {
+  return accounts.filter(a => a.confidence.what_changed === "low" || a.confidence.what_you_see === "low").length;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ─── Decision bar ──────────────────────────────────────────────────────
+function renderDecisionBar(artifact) {
+  decision.style.display = "flex";
+  confidenceTick.checked = false;
+  btnApprove.disabled = true;
+  tickLabel.textContent = "I read the confidence note per row";
+
+  const totalRows = artifact.content.rows ? artifact.content.rows.length : 0;
+  const weakRows = totalRows - artifact.content.rows.filter(r => r.confidence.what_changed !== "low" && r.confidence.what_you_see !== "low").length;
+  if (weakRows > 0) {
+    tickLabel.textContent = `I read the confidence note per row (${weakRows} weak row${weakRows>1?"s":""} folded)`;
+  }
+}
+
+confidenceTick.addEventListener("change", () => {
+  btnApprove.disabled = !confidenceTick.checked;
+  if (confidenceTick.checked) {
+    tickLabel.textContent = "✓ I read the confidence note per row";
+    tickLabel.style.color = "var(--fg)";
+  } else {
+    tickLabel.textContent = "I read the confidence note per row";
+    tickLabel.style.color = "";
+  }
+});
+
+btnApprove.addEventListener("click", () => approveCurrent());
+btnHold.addEventListener("click", () => holdCurrent());
+btnEdit.addEventListener("click", () => editCurrent());
+
+// ─── Gate pill ─────────────────────────────────────────────────────────
+function renderGatePill() {
+  const count = state.pending.length;
+  if (count === 0) {
+    gatePillWrap.innerHTML = `<div class="gate-pill-empty"><span class="pill-dot" style="background:var(--dim);"></span>nothing waiting</div>`;
+    return;
+  }
+  gatePillWrap.innerHTML = `<div class="gate-pill" id="gatePill"><span class="pill-dot"></span><span class="pill-count">${count}</span> waiting for you</div>`;
+  document.getElementById("gatePill").addEventListener("click", openDrawer);
+}
+
+function openDrawer() {
+  if (state.pending.length === 0) return;
+  const art = state.pending[0];
+  drawerBody.innerHTML = buildDrawerBody(art);
+  drawerActions.style.display = "flex";
+  ddApprove.disabled = true;
+  document.getElementById("ddTick").checked = false;
+  document.getElementById("ddTickLabel").textContent = "I read the confidence note per row";
+  drawer.classList.add("open");
+  drawerOverlay.classList.add("open");
+ DrawerCheckbox();
+}
+
+function closeDrawer() {
+  drawer.classList.remove("open");
+  drawerOverlay.classList.remove("open");
+}
+
+drawerClose.addEventListener("click", closeDrawer);
+drawerOverlay.addEventListener("click", closeDrawer);
+
+function buildDrawerBody(art) {
+  const rows = art.content.rows || [];
+  let rowsHtml = "";
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const conf = r.confidence;
+    const isWeak = conf.what_changed === "low" || conf.what_you_see === "low";
+    const shapedBy = r.shaped_by;
+    rowsHtml += `
+      <div class="drawer-row">
+        <div class="drawer-row-head">
+          <span class="row-num">row ${String(i+1).padStart(2,"0")}</span>
+          ${escapeHtml(r.company)}
+          <div class="drawer-confs">
+            <span class="conf ${conf.what_changed}">${conf.what_changed}</span>
+            <span class="conf ${conf.what_you_see}">${conf.what_you_see}</span>
+          </div>
+        </div>
+        <div class="drawer-row-body">
+          <div class="field"><div class="field-label">what changed</div><div class="field-value">${escapeHtml(r.what_changed)}</div></div>
+          <div class="field"><div class="field-label">what you see</div><div class="field-value">${escapeHtml(r.what_you_see)}</div></div>
+          <div class="field"><div class="field-label">what your service fixes</div><div class="field-value">${escapeHtml(r.what_your_service_fixes)}</div></div>
+          <div class="drawer-draft">
+            ${escapeHtml(r.draft)}
+            ${shapedBy ? `<div class="shaped-by" style="display:inline-block;font-size:10px;color:var(--accent);background:var(--accent-soft);padding:1px 6px;border-radius:3px;margin-top:6px;font-family:'Inter',sans-serif;">shaped by ruling: ${shapedBy.line} — ${escapeHtml(shapedBy.text.replace(/^- \d{4}-\d{2}-\d{2} — /, ""))}</div>` : ""}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="drawer-art-id">${art.id}</div>
+    <div class="drawer-art-cap">${art.capability}</div>
+    <div class="drawer-art-status">${art.status}</div>
+    ${rowsHtml ? `<div class="drawer-section"><div class="drawer-section-label">research sheet · ${rows.length} rows</div>${rowsHtml}</div>` : ""}
+    <div class="drawer-section">
+      <div class="drawer-section-label">write-back</div>
+      <div style="font-size:12px;color:var(--muted);">${art.narration ? art.narration.write_back.map(f => `<span class="mono" style="font-size:11px;color:var(--muted);margin-right:8px;">${f}</span>`).join("") : "—"}</div>
+    </div>
+    <div class="drawer-tick" id="ddTickWrap">
+      <input type="checkbox" id="ddTick">
+      <div>
+        <div id="ddTickLabel" style="font-size:13px;color:var(--fg);font-weight:500;">I read the confidence note per row</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">Approve is disabled until you tick this. Hold and Edit are always live.</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--dim);margin-top:8px;font-family:'JetBrains Mono',monospace;">${art.created_at}</div>
+  `;
+}
+
+function DrawerCheckbox() {
+  const tick = document.getElementById("ddTick");
+  const label = document.getElementById("ddTickLabel");
+  if (!tick) return;
+  tick.addEventListener("change", () => {
+    ddApprove.disabled = !tick.checked;
+    const wrap = document.getElementById("ddTickWrap");
+    if (tick.checked) {
+      wrap.classList.add("checked");
+      label.textContent = "✓ I read the confidence note per row";
+    } else {
+      wrap.classList.remove("checked");
+      label.textContent = "I read the confidence note per row";
+    }
+  });
+}
+
+ddApprove.addEventListener("click", () => approveCurrent());
+ddHold.addEventListener("click", () => holdCurrent());
+ddEdit.addEventListener("click", () => editCurrent());
+
+// ─── Actions ───────────────────────────────────────────────────────────
+function approveCurrent() {
+  if (state.pending.length === 0) { toastMsg("nothing pending"); return; }
+  const art = state.pending.shift();
+  art.status = "approved";
+  art.approved_at = nowISO();
+  state.narration = null; // cleared after approval
+
+  // Audit approval entry
+  state.audit.unshift({
+    id: art.id,
+    capability: art.capability,
+    harness_version: "0.1.0",
+    risk_class: "medium",
+    approval_mode: "ask-first",
+    fired_at: nowISO(),
+    evidence: {approved:true, approved_at: art.approved_at},
+    status: "approved"
+  });
+
+  decision.style.display = "none";
+  renderGatePill();
+  renderVaultTree();
+  toastMsg(`approved ${art.id}`);
+  // Clear sheet
+  sheet.innerHTML = "";
+  stream.innerHTML = `<div class="narr-step"><div class="narr-step-label">approved</div><div class="narr-step-body" style="color:var(--accent);font-weight:500;">${art.id} — flipped to approved, written to vault, removed from the gate.</div></div>`;
+  closeDrawer();
+}
+
+function holdCurrent() {
+  if (state.pending.length === 0) { toastMsg("nothing pending"); return; }
+  const art = state.pending.shift();
+  art.status = "held";
+  state.narration = null;
+  decision.style.display = "none";
+  renderGatePill();
+  renderVaultTree();
+  toastMsg(`held ${art.id}`);
+  sheet.innerHTML = "";
+  stream.innerHTML = `<div class="narr-step"><div class="narr-step-label">held</div><div class="narr-step-body" style="color:var(--amber);font-weight:500;">${art.id} — held at the gate. It will wait until you say otherwise.</div></div>`;
+  closeDrawer();
+}
+
+function editCurrent() {
+  if (state.pending.length === 0) { toastMsg("nothing to edit"); return; }
+  const art = state.pending[0];
+  // In a real implementation this would open the markdown note in Obsidian.
+  // For the prototype, show the first row's draft in the thread.
+  const rows = art.content.rows || [];
+  if (rows.length === 0) { toastMsg("no rows to edit"); return; }
+  const r = rows[0];
+  stream.innerHTML = "";
+  stream.innerHTML = `
+    <div class="narr-step">
+      <div class="narr-step-label">edit</div>
+      <div class="narr-step-body">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${r.company} · row 1 · <span class="mono">messages/${art.id}-01.md</span></div>
+        <div style="padding:12px 14px;background:var(--row-dim);border-left:2px solid var(--accent);border-radius:0 3px 3px 0;font-size:13px;color:var(--fg);line-height:1.5;">${escapeHtml(r.draft)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;">In the real seat this opens the markdown note. Here the draft is in place — same verb, end to end.</div>
+      </div>
+    </div>
+  `;
+  toastMsg(`editing ${art.id} — row 1`);
+}
+
+// ─── Rulings ───────────────────────────────────────────────────────────
+function addRuling(text) {
+  // Normalize: strip leading date if user included one
+  let norm = text.trim();
+  // If it already looks like a dated ruling, keep as-is; otherwise prefix
+  if (!norm.match(/^\d{4}-\d{2}-\d{2}/)) {
+    const today = new Date().toISOString().slice(0,10);
+    norm = `- ${today} — ${norm}`;
+  }
+  const lineNum = state.rulings.length + 1;
+  state.rulings.push({file:`rulings/${today}.md`, line:lineNum, text:norm});
+  state.vaultCounts.rulings = state.rulings.length;
+  renderVaultTree();
+  renderGatePill();
+
+  // Re-run the last command if there was one, to show ruling effect
+  // For the prototype, we show a confirmation and let the user run again.
+  toastMsg(`ruling added: ${norm.replace(/^- \d{4}-\d{2}-\d{2} — /, "")}`);
+  stream.innerHTML = "";
+  stream.innerHTML = `
+    <div class="narr-step">
+      <div class="narr-step-label">rulings</div>
+      <div class="narr-step-body">
+        <div class="ruling-line"><span class="ruling-label">read before drafting</span>${escapeHtml(norm)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">Now read by every run before drafting. Run again to see it honored.</div>
+      </div>
+    </div>
+  `;
+  sheet.innerHTML = "";
+  decision.style.display = "none";
+}
+
+// ─── Command handling ──────────────────────────────────────────────────
+function handleCommand(input) {
+  const parsed = parseCommand(input);
+  if (!parsed) {
+    toastMsg("don't know that command — try 'run signal outbound top 5'");
+    return;
+  }
+
+  if (parsed.action === "approve") {
+    approveCurrent();
+    return;
+  }
+  if (parsed.action === "hold") {
+    holdCurrent();
+    return;
+  }
+  if (parsed.action === "add-ruling") {
+    addRuling(parsed.text);
+    return;
+  }
+  if (parsed.action === "edit") {
+    editCurrent();
+    return;
+  }
+
+  // Run a capability
+  runCapability(parsed.capability, parsed);
+}
+
+cmdRun.addEventListener("click", () => {
+  const v = cmdInput.value.trim();
+  if (!v) return;
+  handleCommand(v);
+  cmdInput.value = "";
+});
+
+cmdInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    const v = cmdInput.value.trim();
+    if (!v) return;
+    handleCommand(v);
+    cmdInput.value = "";
+  }
+});
+
+document.querySelectorAll(".chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    cmdInput.value = chip.dataset.cmd;
+    handleCommand(chip.dataset.cmd);
+    cmdInput.value = "";
+  });
+});
+
+// Keyboard shortcut: Cmd+K focuses input
+document.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+    e.preventDefault();
+    cmdInput.focus();
+  }
+});
+
+// ─── Vault tree ────────────────────────────────────────────────────────
+function renderVaultTree() {
+  const counts = state.vaultCounts;
+  let html = "";
+  for (const folder of VAULT_FOLDERS) {
+    const c = counts[folder.name] || 0;
+    html += `<div class="tree-item folder"><span class="chevron">${folder.open ? "▾" : "▸"}</span>${folder.name}/<span class="count ${c===0?'zero':''}">${c}</span></div>`;
+    if (folder.open && folder.children) {
+      html += `<div class="tree-children">`;
+      for (const child of folder.children) {
+        if (child.leaf) {
+          html += `<div class="tree-leaf">${child.name}</div>`;
+        } else if (child.folder) {
+          const cc = counts[child.name.replace("/","")] || 0;
+          html += `<div class="tree-item folder" style="padding-left:8px;"><span class="chevron">▸</span>${child.name}<span class="count ${cc===0?'zero':''}">${cc}</span></div>`;
+        }
+      }
+      html += `</div>`;
+    }
+  }
+  vaultTree.innerHTML = html;
+}
+
+// ─── Init ──────────────────────────────────────────────────────────────
+renderVaultTree();
+renderGatePill();
+emptyState.style.display = "block";
+
+// Pre-warm with a past run so the seat isn't blank (mirrors the repo's state).
+// Simulate the last signal-outbound run that's in state/pending.json.
+(function prewarm() {
+  const pastRulings = state.rulings.filter(r => r.text.includes("leverage"));
+  const top_n = 2;
+  const accounts = STUB_ACCOUNTS.slice(0, top_n);
+  const id = "so-03de119651";
+  const rows = accounts.map((r, i) => {
+    const {draft, shapedBy} = generateDraft(r, pastRulings);
+    return {
+      row: i+1,
+      company: r.company,
+      vertical: r.vertical,
+      employees: r.employees,
+      spend_range: r.spend_range,
+      what_changed: r.what_changed,
+      what_you_see: r.what_you_see,
+      what_your_service_fixes: r.what_your_service_fixes,
+      confidence: r.confidence,
+      draft,
+      shaped_by: null
+    };
+  });
+  state.pending.push({
+    id,
+    capability: "signal-outbound",
+    status: "pending",
+    content: {
+      type: "research-sheet",
+      trigger: "manual",
+      source_summary: "Apollo filtered to ICP + signals; 10 raw accounts, 10 kept after enrichment waterfall",
+      top_n: 2,
+      total_kept: 10,
+      rows
+    },
+    confidence: rows.map((r, i) => ({
+      row: i+1,
+      note: `row ${String(i+1).padStart(2,"0")}: what_changed=${r.confidence.what_changed}, what_you_see=${r.confidence.what_you_see}`,
+      what_changed: r.confidence.what_changed,
+      what_you_see: r.confidence.what_you_see
+    })),
+    decision_evidence: {
+      read_vault: ["/Users/alejandropascual/gravita-gtm/vault/offer/product.md","/Users/alejandropascual/gravita-gtm/vault/buyers/icp.md","/Users/alejandropascual/gravita-gtm/vault/voice/voice.md","/Users/alejandropascual/gravita-gtm/vault/workflows/signal-outbound.md"],
+      rulings_matched: pastRulings.map(r => r.file),
+      rulings_honored: pastRulings.map(r => ({file:r.file, text:r.text, how:"read before drafting"})),
+      source: "stub/apollo + stub/clay (Phase 1 dry-run)",
+      accounts_considered: 10,
+      accounts_kept: 10,
+      accounts_drafted: 2,
+      draft_rules: "open with workload, two short paragraphs, no pitch in first line, handful not a list"
+    },
+    created_at: "2026-08-21T22:23:26.233811+00:00",
+    approved_at: null
+  });
+  state.narration = {
+    capability: "signal-outbound",
+    trigger: "manual",
+    sources: ["vault/offer/product.md","vault/buyers/icp.md","vault/voice/voice.md","vault/workflows/signal-outbound.md","stub/apollo","stub/clay (enrichment waterfall)"],
+    rulings_honored: pastRulings.map(r => ({file:r.file, line:r.line, text:r.text, how:"read before drafting"})),
+    waterfall: {raw:10, kept:10, drained:0},
+    rows: rows.map((r, i) => {
+      const {draft} = generateDraft(STUB_ACCOUNTS[i], pastRulings);
+      return {
+        row: i+1,
+        company: r.company,
+        vertical: r.vertical,
+        employees: r.employees,
+        spend_range: r.spend_range,
+        what_changed: r.what_changed,
+        what_you_see: r.what_you_see,
+        what_your_service_fixes: r.what_your_service_fixes,
+        confidence: r.confidence,
+        draft,
+        shaped_by: null
+      };
+    }),
+    draft_rule: "open with workload, two short paragraphs, no pitch in first line, handful not a list",
+    gate: "PENDING (ask-first for send)",
+    write_back: ["prospects/so-03de119651.md","signals/so-03de119651-01.md","signals/so-03de119651-02.md","messages/so-03de119651-01.md","messages/so-03de119651-02.md"]
+  };
+  state.audit.push({
+    id: "so-03de119651",
+    capability: "signal-outbound",
+    harness_version: "0.1.0",
+    risk_class: "medium",
+    approval_mode: "ask-first",
+    fired_at: "2026-08-21T22:23:26.234222+00:00",
+    evidence: state.pending[0].decision_evidence,
+    status: "produced"
+  });
+  state.vaultCounts.prospects = 1;
+  state.vaultCounts.signals = 2;
+  state.vaultCounts.messages = 2;
+
+  // Show the prewarmed run in the thread
+  showPrewarmedRun();
+})();
+
+function showPrewarmedRun() {
+  emptyState.style.display = "none";
+  const nar = state.narration;
+  const steps = [
+    {label:"trigger", body:`<span class="chip-inline cyan">${nar.trigger}</span> ${nar.capability} — you asked for the week's top prospects.`},
+    {label:"read vault", body:nar.sources.map(s => `<span class="mono">${s}</span>`).join(", ")},
+    {label:"rulings", body: nar.rulings_honored.length === 0
+      ? `<span class="narr-step-empty">no rulings — nothing read before drafting</span>`
+      : `<div style="margin-top:4px;">${nar.rulings_honored.map(r => `<span class="ruling-line"><span class="ruling-label">read before drafting</span>${escapeHtml(r.text)}</span>`).join("")}</div><div style="font-size:11px;color:var(--muted);margin-top:4px;">${nar.rulings_honored.length} ruling${nar.rulings_honored.length>1?"s":""} read first, every run</div>`},
+    {label:"source", body:`<span class="mono">stub/apollo</span> + <span class="mono">stub/clay</span> <span class="chip-inline muted">Phase 1 dry-run</span>`},
+    {label:"enrichment", body:
+      `<span class="chip-inline cyan">${nar.waterfall.raw}</span> raw <span class="chip-inline muted">→</span> ` +
+      `<span class="chip-inline green">${nar.waterfall.kept}</span> kept <span class="chip-inline muted">→</span> ` +
+      `<span class="chip-inline yellow">${nar.waterfall.drained}</span> drained` +
+      ` <span style="font-size:11px;color:var(--muted);">weak rows dropped before drafting</span>`
+    },
+    {label:"research sheet", body:`<span class="chip-inline cyan">${nar.rows.length}</span> rows with confidence notes`}
+  ];
+  steps.forEach(s => {
+    const el = document.createElement("div");
+    el.className = "narr-step";
+    el.innerHTML = `<div class="narr-step-label">${s.label}</div><div class="narr-step-body">${s.body}</div>`;
+    stream.appendChild(el);
+  });
+
+  // Build sheet from narration rows
+  let rowsHtml = "";
+  nar.rows.forEach((r, i) => {
+    const conf = r.confidence;
+    const isWeak = conf.what_changed === "low" || conf.what_you_see === "low";
+    rowsHtml += `
+      <div class="row ${isWeak ? "head-weak" : ""}" data-row="${i}">
+        <div class="row-head">
+          <span class="row-num">row ${String(i+1).padStart(2,"0")}</span>
+          <span class="row-company">${escapeHtml(r.company)}</span>
+          <div class="row-confs">
+            <span class="row-conf ${conf.what_changed}">${conf.what_changed}</span>
+            <span class="row-conf ${conf.what_you_see}">${conf.what_you_see}</span>
+          </div>
+        </div>
+        <div class="row-body">
+          <div class="field"><div class="field-label">what changed</div><div class="field-value">${escapeHtml(r.what_changed)}</div></div>
+          <div class="field"><div class="field-label">what you see</div><div class="field-value">${escapeHtml(r.what_you_see)}</div></div>
+          <div class="field"><div class="field-label">what your service fixes</div><div class="field-value">${escapeHtml(r.what_your_service_fixes)}</div></div>
+          <div class="draft-block">
+            <div class="draft-label">draft · held at the gate</div>
+            ${escapeHtml(r.draft)}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  const sheetEl = document.createElement("div");
+  sheetEl.className = "sheet";
+  const anyWeak = nar.rows.filter(r => r.confidence.what_changed === "low" || r.confidence.what_you_see === "low").length;
+  sheetEl.innerHTML = `
+    <div class="sheet-header">
+      <div class="sheet-title">Research sheet</div>
+      <div class="sheet-meta">
+        <span class="mono">${nar.capability}</span> · <span class="mono">${nar.trigger}</span> · ${nar.rows.length} rows
+        ${anyWeak ? `<span class="chip-inline yellow" style="margin-left:6px;">${anyWeak} weak row${anyWeak>1?"s":""} folded & dimmed</span>` : ""}
+      </div>
+    </div>
+    <div class="sheet-body">${rowsHtml}</div>
+  `;
+  sheet.appendChild(sheetEl);
+  sheetEl.querySelectorAll(".row-head").forEach(head => {
+    head.addEventListener("click", () => head.closest(".row").classList.toggle("open"));
+  });
+
+  renderDecisionBar(state.pending[0]);
+  renderGatePill();
+  renderVaultTree();
+}
+</script>
+</body>
+</html>
