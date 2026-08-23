@@ -1,0 +1,28 @@
+# generated preview
+state/gravita-dashboard.html
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtualenv
+.venv
+venv/
+env/
+
+# Env vars file (if used)
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

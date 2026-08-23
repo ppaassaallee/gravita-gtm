@@ -1,0 +1,196 @@
+[
+  {
+    "id": "so-03de119651",
+    "capability": "signal-outbound",
+    "status": "pending",
+    "content": {
+      "type": "research-sheet",
+      "trigger": "manual",
+      "source_summary": "Apollo filtered to ICP + signals; 10 raw accounts, 10 kept after enrichment waterfall",
+      "top_n": 2,
+      "total_kept": 10,
+      "rows": [
+        {
+          "row": 1,
+          "company": "Ironclad Cyber Defense",
+          "vertical": "energy",
+          "employees": 77,
+          "spend_range": ">$1M",
+          "what_changed": "Stale site: website last updated 14 months ago",
+          "what_you_see": "Large budget, no visible outbound motion; running on referrals and inbound alone",
+          "what_your_service_fixes": "Signal outbound that turns their visible changes into researched first touches.",
+          "confidence": {
+            "what_changed": "medium",
+            "what_you_see": "medium"
+          },
+          "draft": "Saw stale site: website last updated 14 months ago at Ironclad Cyber Defense a site untouched for a year usually means the work is visible from outside and usually the easiest place to start.Large budget, no visible outbound motion; running on referrals and inbound alone. Signal outbound that turns their visible changes into researched first touches.."
+        },
+        {
+          "row": 2,
+          "company": "Lantern Education Partners",
+          "vertical": "financial services",
+          "employees": 283,
+          "spend_range": "$200k-$500k",
+          "what_changed": "New owner: new CEO appointed 6 weeks ago",
+          "what_you_see": "No owned demand channel visible; pipeline reliant on inbound",
+          "what_your_service_fixes": "A governed demand-generation workflow that reads from your vault and drafts held at your approval gate.",
+          "confidence": {
+            "what_changed": "high",
+            "what_you_see": "medium"
+          },
+          "draft": "Saw new owner: new ceo appointed 6 weeks ago at Lantern Education Partners a new owner usually looks for quick wins in the first 90 days, and the work that's visible from outside is usually the easiest one to point to.No owned demand channel visible; pipeline reliant on inbound. A governed demand-generation workflow that reads from your vault and drafts held at your approval gate.."
+        }
+      ]
+    },
+    "confidence": [
+      {
+        "row": 1,
+        "note": "row 01: what_changed=medium, what_you_see=medium",
+        "what_changed": "medium",
+        "what_you_see": "medium"
+      },
+      {
+        "row": 2,
+        "note": "row 02: what_changed=high, what_you_see=medium",
+        "what_changed": "high",
+        "what_you_see": "medium"
+      }
+    ],
+    "decision_evidence": {
+      "read_vault": [
+        "/Users/alejandropascual/gravita-gtm/vault/offer/product.md",
+        "/Users/alejandropascual/gravita-gtm/vault/buyers/icp.md",
+        "/Users/alejandropascual/gravita-gtm/vault/voice/voice.md",
+        "/Users/alejandropascual/gravita-gtm/vault/workflows/signal-outbound.md"
+      ],
+      "rulings_matched": [],
+      "rulings_honored": [],
+      "source": "stub/apollo + stub/clay (Phase 1 dry-run)",
+      "accounts_considered": 10,
+      "accounts_kept": 10,
+      "accounts_drafted": 2,
+      "draft_rules": "open with workload, two short paragraphs, no pitch in first line, handful not a list"
+    },
+    "created_at": "2026-08-21T22:23:26.233811+00:00",
+    "approved_at": null
+  },
+  {
+    "id": "ml-6177901828",
+    "capability": "money-loop",
+    "status": "pending",
+    "content": {
+      "type": "money-loop-artifact",
+      "event_type": "payment.failed",
+      "customer": "Halcyonconstructiongroup",
+      "churn_bucket": "card_failed",
+      "amount": 18000,
+      "failure_reason": "declined_by_issuer",
+      "cancellation_reason": null,
+      "actions": [
+        {
+          "action": "retry_charge",
+          "retry_in_days": 1,
+          "reason": "declined_by_issuer",
+          "email_draft": "Hi there — a payment for $18,000 didn't go through (declined_by_issuer). We'll retry in 1 days. If you'd rather update your card now, here's the link: [update card]. No need to reply unless something's off."
+        }
+      ]
+    },
+    "confidence": [
+      {
+        "note": "churn_bucket=card_failed; reason=declined_by_issuer"
+      }
+    ],
+    "decision_evidence": {
+      "read_vault": [
+        "/Users/alejandropascual/gravita-gtm/vault/offer/product.md"
+      ],
+      "rulings_matched": [],
+      "rulings_honored": [],
+      "source": "stub/stripe (Phase 1 dry-run)",
+      "churn_bucket": "card_failed",
+      "recovery_action": "retry_charge"
+    },
+    "created_at": "2026-08-21T22:23:26.606308+00:00",
+    "approved_at": null
+  },
+  {
+    "id": "cb-ed6bd43fcc",
+    "capability": "content-batch",
+    "status": "pending",
+    "content": {
+      "type": "content-batch",
+      "trigger": "manual",
+      "batch": [
+        {
+          "platform": "linkedin",
+          "headline": "The three things a one-person sales team stops doing after month two",
+          "engagement": 48,
+          "daily_posts": [
+            "The three things a one-person sales team stops doing after month two",
+            "The one thing most people miss about The three things a one-person sales team stops doing after month two.",
+            "A short version of The three things a one-person sales team stops doing after month two, for the people who won't read the long one."
+          ],
+          "manual_task": "Make the first outputs by hand for the people who commented on this one. A stranger who got a personalized result tells someone."
+        },
+        {
+          "platform": "linkedin",
+          "headline": "Signal outbound: the message that opens with what changed at their business",
+          "engagement": 72,
+          "daily_posts": [
+            "Signal outbound: the message that opens with what changed at their business",
+            "The one thing most people miss about Signal outbound.",
+            "A short version of Signal outbound, for the people who won't read the long one."
+          ],
+          "manual_task": "Make the first outputs by hand for the people who commented on this one. A stranger who got a personalized result tells someone."
+        },
+        {
+          "platform": "linkedin",
+          "headline": "We ran signal outbound for four weeks. Here's the message that got the reply.",
+          "engagement": 110,
+          "daily_posts": [
+            "We ran signal outbound for four weeks. Here's the message that got the reply.",
+            "The one thing most people miss about We ran signal outbound for four weeks. Here's the message that got the reply..",
+            "A short version of We ran signal outbound for four weeks. Here's the message that got the reply., for the people who won't read the long one."
+          ],
+          "manual_task": "Make the first outputs by hand for the people who commented on this one. A stranger who got a personalized result tells someone."
+        }
+      ],
+      "flagged_strongest": {
+        "strongest": "We ran signal outbound for four weeks. Here's the message that got the reply.",
+        "why": "Highest engagement (110), most comments, most repost-worthy angle in the batch.",
+        "next_batch_starts_from": "a poll, not a guess — the newsletter asks readers what to write about next"
+      },
+      "poll_for_newsletter": {
+        "question": "What should the next content batch focus on?",
+        "options": [
+          "Signal outbound — the first message that opens with what changed",
+          "Warm outbound — the engaged list you send by hand",
+          "The money loop — recovering revenue you already have",
+          "Member health — keeping people past the second month"
+        ]
+      },
+      "manual_tasks": [
+        "Make the first outputs by hand for the people who commented on this one. A stranger who got a personalized result tells someone.",
+        "Make the first outputs by hand for the people who commented on this one. A stranger who got a personalized result tells someone.",
+        "Make the first outputs by hand for the people who commented on this one. A stranger who got a personalized result tells someone."
+      ]
+    },
+    "confidence": [
+      {
+        "note": "draft only; edits and approvals required before publish"
+      }
+    ],
+    "decision_evidence": {
+      "read_vault": [
+        "/Users/alejandropascual/gravita-gtm/vault/voice/voice.md"
+      ],
+      "rulings_matched": [],
+      "rulings_honored": [],
+      "source": "stub/platform-numbers (Phase 1 dry-run)",
+      "posts_read": 5,
+      "draft_rule": "write in voice, flag strongest, add a poll; nothing publishes without you"
+    },
+    "created_at": "2026-08-21T22:23:26.943860+00:00",
+    "approved_at": null
+  }
+]

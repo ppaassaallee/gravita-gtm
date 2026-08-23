@@ -1,0 +1,20 @@
+{
+  "capability": "content-batch",
+  "trigger": "manual",
+  "sources": [
+    "vault/voice/voice.md",
+    "stub/platform-numbers (Phase 1 dry-run)"
+  ],
+  "rulings_honored": [],
+  "waterfall": {
+    "raw": 0,
+    "kept": 0,
+    "drained": 0
+  },
+  "rows": [],
+  "draft_rule": "write in voice, flag strongest, add a poll; nothing publishes without you",
+  "gate": "PENDING (ask-first for PUBLISH)",
+  "write_back": [
+    "metrics/cb-ed6bd43fcc.md"
+  ]
+}

@@ -1,0 +1,22 @@
+[project]
+name = "gravita-gtm"
+version = "0.1.0"
+description = "Outcome-orchestrated GTM platform — Hermes-patterned conversational sessions, governed multi-agent triggers, cloud-hosted Obsidian vault as the semantic layer."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+dependencies = [
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.9.0",
+]
+
+[project.scripts]
+gravita = "gravita_gtm.cli.repl:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
