@@ -109,33 +109,33 @@ DOC_CATEGORY_MAP = {
     "sow": ["statement of work", "sow", "alcance", "scope of work",
             "entregables"],
     "contract": ["contract", "contrato", "agreement", "acuerdo", "msa",
-                 "nda", "contract", "contrato", "adendum", "addendum",
+                 "nda", "adendum", "addendum",
                  "modification", "modificación", "modificacion"],
     "plan": ["plan", "planificacion", "planificación", "proyecto",
              "roadmap", "cronograma", "planning"],
     "deck": ["deck", "presentacion", "presentación", "pptx", "ppt",
-             "slides", "diapositivas", "deck"],
+             "slides", "diapositivas"],
     "report": ["report", "reporte", "informe", "resumen", "estado",
-               "dashboard", "status report", "report"],
+               "dashboard", "status report"],
     "pricing": ["pricing", "precios", "tarifa", "fee", "cost",
                 "cotizacion", "cotización", "investment",
                 "inversion", "inversión"],
-    "data": ["data", "datos", "dataset", "base de datos", "xlsx", "csv",
+    "data": ["data", "datos", "dataset", "base de datos",
              "database", "reporting data"],
-    "spec": ["spec", "especificaciones", "requirements", "requisitos",
-             "api", "specs", "specification"],
+    "spec": ["especificaciones", "requirements", "requisitos",
+             "specs", "specification"],
     "brief": ["brief", "briefing", "brief de", "creative brief"],
-    "template": ["template", "plantilla", "templates", "template"],
+    "template": ["template", "plantilla", "templates"],
     "internal": ["internal", "interno", "memo", "comunicacion interna",
                  "comunicación interna", "internal memo"],
     "notes": ["notes", "notas", "meeting notes", "acta", "acta de",
-              "meeting notes", "notas de"],
+              "notas de"],
     "tracking": ["tracking", "seguimiento", "pipeline", "forecast",
-                 "forecast", "opportunity", "sales pipeline"],
-    "invoice": ["invoice", "factura", "billing", "invoice", "factura electronica",
-                "factura electrónica"],
-    "po": ["po", "purchase order", "orden de compra", "purchase order"],
-    "email": ["email", "correo", "message", "mensajes", "mail", " Outlook"],
+                 "opportunity", "sales pipeline"],
+    "invoice": ["invoice", "factura", "billing",
+                "factura electronica", "factura electrónica"],
+    "po": ["purchase order", "orden de compra"],
+    "email": ["email", "correo", "message", "mensajes"],
     "image": ["png", "jpg", "jpeg", "gif", "svg", "screenshot",
               "imagen", "image", "photo", "foto"],
     "font": ["otf", "ttf", "font", "fuente", "typography"],
@@ -226,7 +226,17 @@ class Classification:
 
 def classify_file(file_path: str, text: str = "") -> Classification:
     p = Path(file_path)
-    stat = p.stat()
+    try:
+        stat = p.stat()
+    except OSError as e:
+        return Classification(
+            file_path=file_path,
+            file_name=p.name,
+            file_type=p.suffix.lower().lstrip("."),
+            size_bytes=0,
+            mtime=0,
+            error=f"stat failed: {e}",
+        )
     ext = p.suffix.lower().lstrip(".")
     name_lower = p.name.lower()
 
@@ -411,35 +421,74 @@ def _classify_doc_category(name_lower: str, ext: str, text: str) -> str:
 
 
 def _detect_client(name_lower: str, text: str, file_path: str = "") -> str:
-    """Detect client name from filename and text, excluding department names."""
-    # Collect path components to exclude (these are folder names, not clients)
-    path_banned = set()
+    """Detect client name from filename, path components, and text body.
+
+    Uses word-boundary matching everywhere (custom boundary treats _ - . as
+    delimiters, unlike \\b which treats _ as a word character), so short
+    client names like "BAC", "AWS", "DGA" don't false-match inside other words.
+
+    Path components are checked first (strongest signal — a file in /2025/PTC/
+    is almost certainly a PTC file). Then filename. Then text body as fallback.
+    Department names in the path are excluded.
+    """
+    # Build set of department names (lowercased) for exclusion
+    dept_lower = {d.lower() for d in DEPARTMENT_NAMES}
+
+    # 1. Check path components (excluding department names and cloud storage roots)
+    #    Skip onedrive-* root components so OneDrive-AlliedGlobal doesn't match
+    #    "AlliedGlobal" as a client for every file.
     if file_path:
         for part in Path(file_path).parts:
             pl = part.lower()
-            if pl in (d.lower() for d in DEPARTMENT_NAMES):
-                path_banned.add(pl)
+            # Skip cloud storage root folders
+            if pl.startswith("onedrive-"):
+                continue
+            if pl in dept_lower:
+                continue
+            for client in sorted(CLIENTS, key=len, reverse=True):
+                cl = client.lower()
+                if cl == pl or re.search(rf"(?<![a-zA-Z0-9]){re.escape(cl)}(?![a-zA-Z0-9])", pl):
+                    return client
 
-    combined = f"{name_lower} {text[:1000].lower()}"
-    filtered_clients = CLIENTS - DEPARTMENT_NAMES
-    for client in sorted(filtered_clients, key=len, reverse=True):
+    # 2. Check filename with word-boundary matching
+    for client in sorted(CLIENTS, key=len, reverse=True):
         cl = client.lower()
-        if cl in path_banned:
-            continue
-        if cl in combined:
+        pat = rf"(?<![a-zA-Z0-9]){re.escape(cl)}(?![a-zA-Z0-9])"
+        if re.search(pat, name_lower):
             return client
+
+    # 3. Check text body with word-boundary matching (fallback only)
+    if text:
+        combined = text[:2000].lower()
+        for client in sorted(CLIENTS, key=len, reverse=True):
+            cl = client.lower()
+            pat = rf"(?<![a-zA-Z0-9]){re.escape(cl)}(?![a-zA-Z0-9])"
+            if re.search(pat, combined):
+                return client
+
     return "Unassigned"
 
 
 def _detect_serving_company(name_lower: str, text: str, client: str) -> str:
-    """Determine who the file is from/for."""
-    combined = f"{name_lower} {text[:1000].lower()}"
+    """Determine who the file is from/for.
+
+    Uses word-boundary matching for serving company detection to avoid
+    false matches. Skips 'onedrive-*' path components.
+    """
+    # Check filename and text body with word boundaries
+    combined = f"{name_lower}"
+    if text:
+        combined += " " + text[:2000].lower()
+
     for company in SERVING_COMPANIES:
-        if company.lower() in combined:
+        cl = company.lower()
+        pat = rf"(?<![a-zA-Z0-9]){re.escape(cl)}(?![a-zA-Z0-9])"
+        if re.search(pat, combined):
             return company
-    # Heuristic: if the client is a known client, the serving company is
-    # probably AlliedGlobal unless OneSource/Equipara/Woman present
-    if client and client not in ("Unassigned", "Internal", "General"):
+
+    # Heuristic fallback: if a real external client was found, assume
+    # AlliedGlobal unless OneSource/Equipara/Woman also present
+    if client and client not in ("Unassigned", "Internal", "General", ""):
         if "onesource" in combined:
             return "OneSource"
         if "equipara" in combined or "woman" in combined:
