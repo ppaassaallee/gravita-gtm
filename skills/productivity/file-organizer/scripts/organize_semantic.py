@@ -58,10 +58,15 @@ def safe(s: str) -> str:
 
 
 def build_destination(sc, serving_default: str) -> tuple:
-    """Return (bucket_path, new_filename) for a classification."""
+    """Return (bucket_path, new_filename) for a classification.
+
+    Hierarchy:  Client → Project → (Topic in the filename)
+    For internal (Allied Global) docs there is no client, so:  Type → Project.
+    """
     ext = sc.ext
     company = sc.serving_company or serving_default or "AlliedGlobal"
     client = safe(sc.client) if sc.client else ""
+    project = safe(sc.project) if sc.project else ""
     topic = safe(sc.topic) if sc.topic else ""
     year = sc.date[:4] if (sc.date and sc.date[:4].isdigit()) else ""
 
@@ -77,17 +82,24 @@ def build_destination(sc, serving_default: str) -> tuple:
     if sc.doc_type in ("Code", "Image", "Audio", "Video", "Font", "Media"):
         return os.path.join(bucket, sc.doc_type), sc.file_name
 
+    # ---- Subfolder: Client → Project (in that order). No client → "Unassigned". ----
     if bucket == "Proposal":
-        subdir = client or "Unassigned"
+        if client:
+            subdir = os.path.join(client, project) if project else client
+        else:
+            subdir = os.path.join("Unassigned", project) if project else "Unassigned"
         category = "Proposal"
     elif bucket == "Projects":
-        subdir = client or "Unassigned"
+        if client:
+            subdir = os.path.join(client, project) if project else client
+        else:
+            subdir = os.path.join("Unassigned", project) if project else "Unassigned"
         category = sc.doc_type or "Other"
     else:  # Allied Global (internal)
-        subdir = sc.doc_type or "Internal"
+        subdir = os.path.join(sc.doc_type or "Internal", project) if project else (sc.doc_type or "Internal")
         category = sc.doc_type or "Internal"
 
-    # ---- Rename: Company-Category-Topic-Client-Year.ext ----
+    # ---- Rename: Company-Category-Topic-Client-Year.ext (topic is the key field) ----
     parts = [company, category]
     if topic:
         parts.append(topic)

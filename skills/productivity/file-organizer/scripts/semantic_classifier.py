@@ -65,9 +65,8 @@ PRIMARY_CLIENTS = {
     "APEX Peru",
     # Education
     "Kumon", "KUMON",
-    # Other named accounts
-    "Herrera Llerandi", "San Vicente", "TikTok", "Tik Tok",
-    "ABC", "OneSource",
+    # Other named accounts (ABC is a real client in pricing docs)
+    "Herrera Llerandi", "San Vicente", "TikTok", "Tik Tok", "ABC",
 }
 
 # Tech vendors / platforms — appear as TOOLS in docs, not as the client.
@@ -288,13 +287,37 @@ def _is_trash(text_lower: str, name_lower: str, ext: str, is_duplicate: bool) ->
         if re.search(pat, text_lower):
             return True, "personal_account"
 
-    # 7. Owner's CV/resume (name + CV signal)
+    # 7. Owner's CV/resume — UNAMBIGUOUS signals only.
+    #    MUST use word boundaries: "resume" was matching "resumen" (Spanish
+    #    "summary"), which trashed every proposal with an executive summary.
+    #    "curriculum" alone also matches academic curriculum/training content,
+    #    so require the full "curriculum vitae" / "hoja de vida" phrase.
     if name_present:
-        cv_signals = ["curriculum", "currículum", "resume", "hoja de vida",
-                      "experiencia laboral", "experiencia profesional"]
+        # Unambiguous: full CV phrases or word-bounded English "resume"
+        cv_signals = [
+            r"\bhoja de vida\b",
+            r"\bcurriculum vitae\b",
+            r"\bcurrículum vitae\b",
+            r"\bcurriculo vitae\b",
+            r"\bcv\b",              # standalone "cv" (rare in business text)
+            r"\bresume\b",          # word-bounded: NOT "resumen" (summary)
+        ]
+        # Secondary signals: only count if a primary CV marker is ALSO present
+        secondary = [r"\bexperiencia laboral\b", r"\bexperiencia profesional\b"]
         for s in cv_signals:
-            if s in text_lower or s in name_lower:
+            if re.search(s, text_lower) or re.search(s, name_lower):
                 return True, "personal_cv"
+        # "experiencia laboral/profesional" alone is common in staffing docs —
+        # only treat as CV if a strong personal marker is also present.
+        has_secondary = any(re.search(s, text_lower) for s in secondary)
+        has_personal_marker = any(
+            re.search(p, text_lower) for p in [
+                r"\bfecha de nacimiento\b", r"\bdpi\b", r"\bestado civil\b",
+                r"\bmarital status\b", r"\bfecha nacimiento\b",
+            ]
+        )
+        if has_secondary and has_personal_marker:
+            return True, "personal_cv"
 
     return False, ""
 
@@ -415,6 +438,42 @@ _STOPWORDS = {
     "que", "su", "sus", "es", "se", "al", "este", "esta", "este", "esta",
 }
 
+# Spanish call-center QA / campaign labels. These come from speech-analytics
+# call transcripts. CAMPAIGNS (collections/sales/welcome) map to descriptive
+# English project names. QA SCORES (buena/mala = good/bad call) are NOT real
+# projects — they are dropped so audio calls just file under the client.
+_CAMPAIGN_LABELS = {
+    "cobros": "collections",
+    "cobro": "collections",
+    "venta": "sales",
+    "ventas": "sales",
+    "no venta": "no-sale",
+    "no-venta": "no-sale",
+    "bienvenida": "welcome",
+    "bienvenido": "welcome",
+    "oportunidad": "opportunity",
+}
+
+# QA scoring labels — never a project; audio calls just go under the client.
+_QA_SCORE_LABELS = {
+    "buena", "buenas", "bueno", "buen", "mala", "malas", "malo",
+    "contraejemplo", "ejemplar", "ejemplo",
+    "buena pyme", "mala pyme", "buena consumo", "mala consumo",
+    "good call", "bad call", "noncompliance", "overall delivery",
+    "top driver rechazo", "rechazo",
+}
+
+
+def _translate_label(label: str) -> str:
+    """Return an English project name for a campaign label, or '' for a QA
+    score (so the file just files under its client with no project folder)."""
+    key = label.strip().lower()
+    if key in _QA_SCORE_LABELS:
+        return ""
+    if key in _CAMPAIGN_LABELS:
+        return _CAMPAIGN_LABELS[key]
+    return label
+
 
 def _extract_topic(text_lower: str, name_lower: str) -> str:
     """Extract a short HUMAN topic from the doc's meaning.
@@ -444,7 +503,13 @@ def _extract_topic(text_lower: str, name_lower: str) -> str:
                 and w.lower() not in _METADATA_KEYS
                 and w.lower() not in _STOPWORDS]
         if real:
-            return "-".join(real[:4])
+            raw = "-".join(real[:4])
+            # Translate campaign names (cobros→collections); QA scores → empty
+            translated = _translate_label(raw)
+            if translated:
+                return translated.replace(" ", "-")
+            # QA score — fall through to title words (don't use "buena" as topic)
+            # but skip returning the QA label itself
 
     # 2. Title-region words, junk-filtered
     title = text_lower[:600]
@@ -478,6 +543,7 @@ class SemanticClassification:
     text: str = ""
     bucket: str = ""            # Proposal | Projects | Allied Global | Potential Trash
     client: str = ""            # "" = internal/unassigned
+    project: str = ""           # engagement/campaign/program within a client
     serving_company: str = ""
     topic: str = ""
     doc_type: str = ""
@@ -488,6 +554,69 @@ class SemanticClassification:
     sensitivity: dict = field(default_factory=dict)
     tags: list = field(default_factory=list)
     error: str = ""
+
+
+def _detect_project(text_lower: str, name_lower: str, client: str,
+                    text_original: str = "") -> str:
+    """Extract the PROJECT (engagement/campaign/program) within a client.
+
+    CONSERVATIVE — a wrong project folder is worse than none, so only extract
+    from high-precision signals:
+      1. Call-transcript campaign label ("… – Cobros" → "collections"). These
+         are the real campaigns in this dataset.
+      2. Explicit "PROJECT <Name>" / "PROYECTO <Name>" where <Name> is a short
+         Title/Upper-case proper noun (e.g. "PROJECT TRANSATRON").
+    Everything else → "" (files stay flat under the client with topic in name).
+    """
+    text = text_lower or ""
+    title_region = (text_original or text)[:500]
+
+    # 1. Call-transcript campaign label: "… – Cobros" / "… — Cobros".
+    #    A call transcript has an ID/call-number BEFORE the dash and a SHORT
+    #    label after. A dash in a bullet list is NOT a campaign label.
+    first_line = text.split("\n")[0][:250].split("{")[0]
+    m = re.search(r"^(.*?)[–—]\s*([^–—]{1,40})$", first_line)
+    if m:
+        before = m.group(1)
+        label = m.group(2).strip()
+        # before must contain an ID (digits) — call transcripts carry call numbers
+        if re.search(r"\d", before) and len(label) > 1:
+            label_clean = re.sub(r"[^\w\s]", " ", label)
+            label_clean = re.sub(r"\s+", " ", label_clean).strip()
+            words = [w for w in label_clean.split()
+                     if not _TOPIC_JUNK_RE.match(w)
+                     and w.lower() not in _METADATA_KEYS
+                     and w.lower() not in _STOPWORDS]
+            if 1 <= len(words) <= 4:
+                translated = _translate_label(" ".join(words).strip())
+                if translated:
+                    return translated
+
+    # 2. Explicit "PROJECT <Name>" / "PROYECTO <Name>" — a short proper noun.
+    #    Only in the title region, and <Name> must be mostly Capitalized.
+    #    (?i:...) makes the keyword case-insensitive while keeping the name
+    #    capture case-sensitive (so we only take real proper nouns).
+    m = re.search(r"\b(?i:project|proyecto)\s*[:]?\s+([A-ZÁÉÍÓÚÑÜ][\wáéíóúñü]*(?:\s+[A-ZÁÉÍÓÚÑÜ][\wáéíóúñü]*){0,3})",
+                  title_region)
+    if m:
+        cand = m.group(1).strip()
+        # reject if the "name" is actually sentence continuation (too long / lowercase)
+        if 2 <= len(cand) <= 30 and not re.search(r"\b(?:de|del|la|el|por|para|the|of|to|and)\b", cand, re.IGNORECASE):
+            cand = re.sub(r"[^\w\s]", " ", cand).strip()
+            cand = re.sub(r"\s+", " ", cand)
+            if cand and cand.lower() not in _GENERIC_PROJECT_WORDS:
+                return cand[:40].strip()
+
+    # 3. No high-precision project → empty (flat under client, topic in name)
+    return ""
+
+
+# Single generic words that are never a project name (too vague).
+_GENERIC_PROJECT_WORDS = {
+    "strategy", "overview", "report", "plan", "deck", "proposal", "summary",
+    "analysis", "update", "agenda", "notes", "document", "review", "introduction",
+    "presentation", "general", "details", "results", "conclusion",
+}
 
 
 def classify_semantic(file_path: str, is_duplicate: bool = False,
@@ -552,6 +681,13 @@ def classify_semantic(file_path: str, is_duplicate: bool = False,
 
     # Client from content
     sc.client = _detect_client(text_lower, name_lower, file_path)
+
+    # Project (engagement/campaign within the client) — detect after client.
+    # Pass BOTH lowercased (campaign labels) and original-case (proper nouns).
+    sc.project = _detect_project(text_lower, name_lower, sc.client, text_original=text)
+    # Drop a lone generic word as "project" (too vague to be meaningful)
+    if sc.project and sc.project.strip().lower() in _GENERIC_PROJECT_WORDS:
+        sc.project = ""
 
     # Serving company
     sc.serving_company = _detect_serving_company(text_lower, name_lower, sc.client)
