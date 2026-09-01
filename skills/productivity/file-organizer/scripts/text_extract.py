@@ -11,6 +11,7 @@ import json
 import os
 import re
 import signal
+import sys
 import zipfile
 from pathlib import Path
 from typing import Optional
@@ -196,8 +197,15 @@ def _silence_stderr():
 
 
 def _extract_pdf(p: Path, max_chars: int) -> str:
-    """Extract text from PDF via PyPDF2; fall back to pymupdf.
-    All stderr from the C libraries is silenced (corrupt-PDF spam)."""
+    """Extract text from a PDF.
+
+    Strategy (hang-proof):
+      1. PyPDF2 first — pure Python, so a SIGALRM timeout CAN interrupt it.
+      2. fitz (PyMuPDF) — a C library that can hang in an uninterruptible
+         loop on corrupt PDFs. Run it in a SUBPROCESS with a hard kill timeout
+         so a bad file can never hang the whole run.
+    """
+    # 1. PyPDF2 (pure Python — interruptible)
     try:
         import PyPDF2
         with _silence_stderr():
@@ -216,21 +224,31 @@ def _extract_pdf(p: Path, max_chars: int) -> str:
     except Exception:
         pass
 
-    # pymupdf fallback
+    # 2. fitz via subprocess (hard-killable)
     try:
-        import fitz
-        with _silence_stderr():
-            doc = fitz.open(str(p))
-            parts = []
-            for page in doc[:10]:
-                t = page.get_text()
-                if t:
-                    parts.append(t)
-            if parts:
-                return _clean_text(" ".join(parts), max_chars)
+        return _extract_pdf_subprocess(p, max_chars)
     except Exception:
         pass
 
+    return ""
+
+
+def _extract_pdf_subprocess(p: Path, max_chars: int) -> str:
+    """Run the fitz worker in a subprocess with a hard timeout."""
+    import subprocess
+    worker = Path(__file__).with_name("pdf_worker.py")
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(worker), str(p)],
+            capture_output=True, text=True, timeout=_EXTRACT_TIMEOUT,
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            return _clean_text(proc.stdout, max_chars)
+    except subprocess.TimeoutExpired:
+        # hard-kill handled by run(); the hung worker is gone
+        return ""
+    except Exception:
+        return ""
     return ""
 
 
