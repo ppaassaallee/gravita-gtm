@@ -288,35 +288,44 @@ def _is_trash(text_lower: str, name_lower: str, ext: str, is_duplicate: bool) ->
             return True, "personal_account"
 
     # 7. Owner's CV/resume — UNAMBIGUOUS signals only.
-    #    MUST use word boundaries: "resume" was matching "resumen" (Spanish
-    #    "summary"), which trashed every proposal with an executive summary.
-    #    "curriculum" alone also matches academic curriculum/training content,
-    #    so require the full "curriculum vitae" / "hoja de vida" phrase.
+    #    A real CV is a document DOMINATED by personal bio data. A business doc
+    #    that merely MENTIONS "hoja de vida" (e.g. a contest asking participants
+    #    to submit one) is NOT a CV. Two independent signals:
+    #      (a) the FILENAME says it's a CV ("cv-...", "...-resume", etc.)
+    #      (b) the CONTENT has a CV phrase + ≥2 personal-data markers.
+    #
+    #    NOTE: "resume" is word-bounded so it can't match "resumen" (summary),
+    #    which was the original bug that trashed every proposal.
+    name_has_cv = bool(re.search(
+        r"(^|[^a-z])(cv|resume|curriculum|hoja[\s_\-]?de[\s_\-]?vida)([^a-z]|$)",
+        name_lower))
+
+    if name_has_cv:
+        return True, "personal_cv"
+
     if name_present:
-        # Unambiguous: full CV phrases or word-bounded English "resume"
-        cv_signals = [
-            r"\bhoja de vida\b",
-            r"\bcurriculum vitae\b",
-            r"\bcurrículum vitae\b",
-            r"\bcurriculo vitae\b",
-            r"\bcv\b",              # standalone "cv" (rare in business text)
-            r"\bresume\b",          # word-bounded: NOT "resumen" (summary)
+        cv_phrase = any(re.search(p, text_lower)
+                        for p in [
+                            r"\bhoja de vida\b",
+                            r"\bcurriculum vitae\b",
+                            r"\bcurrículum vitae\b",
+                            r"\bcurriculo vitae\b",
+                            r"\bresume\b",
+                        ])
+        # Personal-data markers (Spanish AND English) that only a real CV/bio
+        # has in density.
+        personal_markers = [
+            r"\bfecha de nacimiento\b", r"\bfecha nacimiento\b",
+            r"\bdate of birth\b",
+            r"\bestado civil\b", r"\bmarital status\b",
+            r"\bdpi\b", r"\bnit\b",           # Guatemala national / tax ID
+            r"\bcelular\b", r"\bcellphone\b", r"\bmobile\b",
+            r"\btel[ée]fono\b", r"\btelephone\b", r"\bphone number\b",
+            r"\bcorreo electr[oó]nico\b", r"\be-?mail\b",
         ]
-        # Secondary signals: only count if a primary CV marker is ALSO present
-        secondary = [r"\bexperiencia laboral\b", r"\bexperiencia profesional\b"]
-        for s in cv_signals:
-            if re.search(s, text_lower) or re.search(s, name_lower):
-                return True, "personal_cv"
-        # "experiencia laboral/profesional" alone is common in staffing docs —
-        # only treat as CV if a strong personal marker is also present.
-        has_secondary = any(re.search(s, text_lower) for s in secondary)
-        has_personal_marker = any(
-            re.search(p, text_lower) for p in [
-                r"\bfecha de nacimiento\b", r"\bdpi\b", r"\bestado civil\b",
-                r"\bmarital status\b", r"\bfecha nacimiento\b",
-            ]
-        )
-        if has_secondary and has_personal_marker:
+        marker_hits = sum(1 for p in personal_markers if re.search(p, text_lower))
+
+        if cv_phrase and marker_hits >= 2:
             return True, "personal_cv"
 
     return False, ""

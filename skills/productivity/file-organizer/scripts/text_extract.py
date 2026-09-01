@@ -10,14 +10,51 @@ Returns extracted text as a string (truncated to MAX_CHARS for safety).
 import json
 import os
 import re
+import signal
 import zipfile
 from pathlib import Path
 from typing import Optional
 
 MAX_CHARS = 8000  # generous cap; classification only needs a sample
 
+# Per-file extraction timeout (seconds). A corrupt file must never hang the
+# whole run — we use SIGALRM to bound each extraction.
+_EXTRACT_TIMEOUT = 30
+
+
+class _ExtractionTimeout(Exception):
+    pass
+
+
+def _handler(signum, frame):
+    raise _ExtractionTimeout()
+
 
 def extract_text(file_path: str, max_chars: int = MAX_CHARS) -> str:
+    """Extract readable text from any supported file type, bounded by a
+    per-file timeout so a corrupt file can't hang the run."""
+    # Only the main thread can use SIGALRM (the organizer is single-threaded).
+    old = None
+    try:
+        old = signal.signal(signal.SIGALRM, _handler)
+        signal.alarm(_EXTRACT_TIMEOUT)
+    except (ValueError, AttributeError):
+        # not in main thread — fall through without a timeout
+        pass
+    try:
+        return _extract_text_impl(file_path, max_chars)
+    except _ExtractionTimeout:
+        return ""
+    finally:
+        signal.alarm(0)
+        if old is not None:
+            try:
+                signal.signal(signal.SIGALRM, old)
+            except (ValueError, AttributeError):
+                pass
+
+
+def _extract_text_impl(file_path: str, max_chars: int = MAX_CHARS) -> str:
     """Extract readable text from any supported file type."""
     p = Path(file_path)
     suffix = p.suffix.lower()
