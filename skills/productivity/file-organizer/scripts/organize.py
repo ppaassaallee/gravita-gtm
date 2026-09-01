@@ -105,8 +105,8 @@ def classify_all(files: List[Path], verbose: bool = False) -> List[Classificatio
                 file_path=str(p),
                 file_name=p.name,
                 file_type=p.suffix.lower().lstrip("."),
-                size_bytes=p.stat().st_size,
-                mtime=p.stat().st_mtime,
+                size_bytes=0,
+                mtime=0,
                 error=str(e),
             )
 

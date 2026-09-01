@@ -8,6 +8,7 @@ Returns extracted text as a string (truncated to MAX_CHARS for safety).
 """
 
 import json
+import os
 import re
 import zipfile
 from pathlib import Path
@@ -138,20 +139,41 @@ def _extract_office_xml(p: Path, suffix: str, max_chars: int) -> str:
         return ""
 
 
+def _silence_stderr():
+    """Context manager that redirects fd 2 (stderr) to /dev/null, so C-level
+    PDF library errors (MuPDF 'object out of range', PyPDF2 warnings) don't
+    flood the console during batch extraction."""
+    import contextlib
+    @contextlib.contextmanager
+    def _cm():
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        old = os.dup(2)
+        os.dup2(devnull, 2)
+        try:
+            yield
+        finally:
+            os.dup2(old, 2)
+            os.close(old)
+            os.close(devnull)
+    return _cm()
+
+
 def _extract_pdf(p: Path, max_chars: int) -> str:
-    """Extract text from PDF via PyPDF2; fall back to pymupdf."""
+    """Extract text from PDF via PyPDF2; fall back to pymupdf.
+    All stderr from the C libraries is silenced (corrupt-PDF spam)."""
     try:
         import PyPDF2
-        with open(p, "rb") as fh:
-            reader = PyPDF2.PdfReader(fh)
-            parts = []
-            for page in reader.pages[:10]:
-                try:
-                    t = page.extract_text()
-                    if t:
-                        parts.append(t)
-                except Exception:
-                    pass
+        with _silence_stderr():
+            with open(p, "rb") as fh:
+                reader = PyPDF2.PdfReader(fh)
+                parts = []
+                for page in reader.pages[:10]:
+                    try:
+                        t = page.extract_text()
+                        if t:
+                            parts.append(t)
+                    except Exception:
+                        pass
             if parts:
                 return _clean_text(" ".join(parts), max_chars)
     except Exception:
@@ -160,14 +182,15 @@ def _extract_pdf(p: Path, max_chars: int) -> str:
     # pymupdf fallback
     try:
         import fitz
-        doc = fitz.open(str(p))
-        parts = []
-        for page in doc[:10]:
-            t = page.get_text()
-            if t:
-                parts.append(t)
-        if parts:
-            return _clean_text(" ".join(parts), max_chars)
+        with _silence_stderr():
+            doc = fitz.open(str(p))
+            parts = []
+            for page in doc[:10]:
+                t = page.get_text()
+                if t:
+                    parts.append(t)
+            if parts:
+                return _clean_text(" ".join(parts), max_chars)
     except Exception:
         pass
 
